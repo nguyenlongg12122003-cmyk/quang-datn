@@ -65,6 +65,17 @@ export function formatPrice(price: number): string {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
 }
 
+export function formatCompactMoney(value: number): string {
+  const abs = Math.abs(Number(value) || 0);
+  const sign = value < 0 ? '-' : '';
+
+  if (abs >= 1e9) return `${sign}${(abs / 1e9).toFixed(abs >= 1e10 ? 0 : 1)}B`;
+  if (abs >= 1e6) return `${sign}${(abs / 1e6).toFixed(abs >= 1e7 ? 0 : 1)}M`;
+  if (abs >= 1e3) return `${sign}${(abs / 1e3).toFixed(abs >= 1e4 ? 0 : 1)}K`;
+
+  return `${sign}${abs.toFixed(0)}`;
+}
+
 export function normalizeCustomizationOptions(options?: Array<string | ProductCustomizationOption>): ProductCustomizationOption[] {
   if (!Array.isArray(options)) return [];
 

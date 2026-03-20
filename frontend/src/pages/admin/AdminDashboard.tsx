@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { DollarSign, ShoppingCart, Package, Users, TrendingUp, AlertTriangle, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { dashboardApi, formatPrice, type DashboardStats } from '@/lib/api-service';
+import { dashboardApi, formatCompactMoney, formatPrice, type DashboardStats } from '@/lib/api-service';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 const COLORS = ['#03045E', '#023E8A', '#0077B6', '#0096C7', '#00B4D8', '#48CAE4', '#90E0EF'];
@@ -58,7 +58,7 @@ export function AdminDashboard() {
               <BarChart data={stats.revenueByMonth}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `${(v/1e6).toFixed(0)}M`} />
+                <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => formatCompactMoney(Number(v) || 0)} />
                 <Tooltip formatter={v => formatPrice(Number(v) || 0)} />
                 <Bar dataKey="revenue" fill="#0077B6" radius={[4,4,0,0]} name="Doanh thu" />
               </BarChart>

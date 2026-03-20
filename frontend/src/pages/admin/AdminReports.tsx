@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { dashboardApi, formatPrice } from '@/lib/api-service';
+import { dashboardApi, formatCompactMoney, formatPrice } from '@/lib/api-service';
 import { Loader2 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -67,7 +67,7 @@ export function AdminReports() {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `${(v/1e6).toFixed(0)}M`} />
+                  <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => formatCompactMoney(Number(v) || 0)} />
                   <Tooltip formatter={v => [formatPrice(Number(v) || 0), 'Doanh thu']} />
                   <Area type="monotone" dataKey="revenue" stroke="#0077B6" fill="url(#rev)" name="Doanh thu" />
                 </AreaChart>
@@ -82,7 +82,7 @@ export function AdminReports() {
                 <ResponsiveContainer width="100%" height={280}>
                   <BarChart data={revenueData.byCategory} layout="vertical">
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" tickFormatter={v => `${(v/1e6).toFixed(0)}M`} tick={{ fontSize: 11 }} />
+                    <XAxis type="number" tickFormatter={(v) => formatCompactMoney(Number(v) || 0)} tick={{ fontSize: 11 }} />
                     <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={100} />
                     <Tooltip formatter={v => formatPrice(Number(v) || 0)} />
                     <Bar dataKey="revenue" fill="#00B4D8" name="Doanh thu" />
