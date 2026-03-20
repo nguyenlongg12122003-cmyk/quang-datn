@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Loader2, X, Tag, Grid3X3 } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Plus, Edit, Trash2, Loader2, X, Tag, Grid3X3, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -137,6 +137,7 @@ function BrandManager() {
   const [editing, setEditing] = useState<Brand | null>(null);
   const [form, setForm] = useState({ name: '', logo: '' });
   const [saving, setSaving] = useState(false);
+  const logoFileRef = useRef<HTMLInputElement>(null);
 
   const load = () => {
     setLoading(true);
@@ -164,6 +165,20 @@ function BrandManager() {
     if (!confirm(`Xóa thương hiệu "${name}"?`)) return;
     try { await catalogApi.deleteBrand(id); toast.success('Đã xóa'); load(); }
     catch { toast.error('Lỗi xóa thương hiệu'); }
+  };
+
+  const handleLogoFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const result = ev.target?.result;
+      if (typeof result === 'string') {
+        setForm(p => ({ ...p, logo: result }));
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
   return (
@@ -211,8 +226,22 @@ function BrandManager() {
           <DialogHeader><DialogTitle>{editing ? 'Sửa thương hiệu' : 'Thêm thương hiệu mới'}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2"><Label>Tên thương hiệu *</Label><Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="VD: Thiên Long" /></div>
-            <div className="space-y-2"><Label>URL Logo</Label><Input value={form.logo} onChange={e => setForm(p => ({ ...p, logo: e.target.value }))} placeholder="https://..." /></div>
-            {form.logo && <img src={form.logo} alt="preview" className="h-12 object-contain border rounded p-1" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />}
+            <div className="space-y-2">
+              <Label>Logo thương hiệu</Label>
+              <div className="flex items-center gap-2">
+                <Button type="button" variant="outline" onClick={() => logoFileRef.current?.click()} className="gap-2">
+                  <Upload className="h-4 w-4" /> Tải ảnh logo
+                </Button>
+                {form.logo && (
+                  <Button type="button" variant="ghost" className="text-red-500" onClick={() => setForm(p => ({ ...p, logo: '' }))}>
+                    Xóa logo
+                  </Button>
+                )}
+              </div>
+              <input ref={logoFileRef} type="file" accept="image/*" className="hidden" onChange={handleLogoFile} />
+              {form.logo && <img src={form.logo} alt="preview" className="h-12 object-contain border rounded p-1" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />}
+              <p className="text-xs text-muted-foreground">Hỗ trợ tải ảnh trực tiếp, không cần nhập URL.</p>
+            </div>
             <div className="flex gap-2 justify-end">
               <Button variant="outline" onClick={() => setShowDialog(false)}><X className="h-4 w-4 mr-1" />Hủy</Button>
               <Button onClick={handleSave} disabled={saving}>{saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Lưu</Button>
