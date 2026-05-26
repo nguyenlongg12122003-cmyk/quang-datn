@@ -221,6 +221,31 @@ function normalizeProductCustomizationOptions(rawOptions) {
     .filter(Boolean);
 }
 
+const allowedOrderTransitions = {
+  pending: ['confirmed', 'cancelled'],
+  confirmed: ['processing', 'cancelled'],
+  processing: ['shipping', 'cancelled'],
+  shipping: ['delivered'],
+  delivered: [],
+  cancelled: [],
+  returned: [],
+};
+
+async function adjustVoucherUsage(pool, voucherCode, direction) {
+  if (!voucherCode) return;
+  const normalizedCode = String(voucherCode).toUpperCase();
+  if (direction === 'increment') {
+    await pool.request()
+      .input('code', sql.NVarChar, normalizedCode)
+      .query('UPDATE dbo.vouchers SET usedCount = usedCount + 1 WHERE code = @code');
+    return;
+  }
+
+  await pool.request()
+    .input('code', sql.NVarChar, normalizedCode)
+    .query('UPDATE dbo.vouchers SET usedCount = CASE WHEN usedCount > 0 THEN usedCount - 1 ELSE 0 END WHERE code = @code');
+}
+
 // ==================== CUSTOMER ====================
 
 router.get('/my-orders', authMiddleware, async (req, res, next) => {
@@ -513,10 +538,38 @@ router.patch('/:id/status', authMiddleware, adminMiddleware, async (req, res, ne
     }
 
     const pool = await getPool();
+    const orderResult = await pool.request()
+      .input('id', sql.NVarChar, req.params.id)
+      .query('SELECT TOP 1 id, [status], paymentStatus, voucherCode FROM dbo.orders WHERE id = @id');
+
+    const order = orderResult.recordset[0];
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    if (order.status === status) {
+      return res.status(200).json({ message: 'Order status unchanged' });
+    }
+
+    const allowedNextStatuses = allowedOrderTransitions[order.status] || [];
+    if (!allowedNextStatuses.includes(status)) {
+      return res.status(409).json({ message: `Không thể chuyển đơn từ ${order.status} sang ${status}` });
+    }
+
+    let nextPaymentStatus = order.paymentStatus;
+    if (status === 'cancelled' && order.paymentStatus === 'paid') {
+      nextPaymentStatus = 'refunded';
+    }
+
     await pool.request()
       .input('id', sql.NVarChar, req.params.id)
       .input('status', sql.NVarChar, status)
-      .query("UPDATE dbo.orders SET [status] = @status WHERE id = @id");
+      .input('paymentStatus', sql.NVarChar, nextPaymentStatus)
+      .query("UPDATE dbo.orders SET [status] = @status, paymentStatus = @paymentStatus WHERE id = @id");
+
+    if (status === 'cancelled' && order.voucherCode) {
+      await adjustVoucherUsage(pool, order.voucherCode, 'decrement');
+    }
 
     await pool.request()
       .input('orderId', sql.NVarChar, req.params.id)
@@ -524,7 +577,7 @@ router.patch('/:id/status', authMiddleware, adminMiddleware, async (req, res, ne
       .input('note', sql.NVarChar, note || null)
       .query("INSERT INTO dbo.order_timeline (orderId, status, date, note) VALUES (@orderId, @status, SYSUTCDATETIME(), @note)");
 
-    return res.json({ message: 'Order status updated' });
+    return res.json({ message: 'Order status updated', paymentStatus: nextPaymentStatus });
   } catch (error) {
     return next(error);
   }
@@ -548,18 +601,25 @@ router.patch('/:id/return', authMiddleware, adminMiddleware, async (req, res, ne
 
     const returnRequest = safeJsonParse(order.returnRequest, null);
     if (!returnRequest) return res.status(400).json({ message: 'No return request found' });
+    if (returnRequest.status !== 'pending') {
+      return res.status(409).json({ message: 'Return request already resolved' });
+    }
 
     returnRequest.status = action;
     returnRequest.resolvedAt = new Date().toISOString();
     if (note) returnRequest.note = note;
 
     const newOrderStatus = action === 'approved' ? 'returned' : 'delivered';
+    const paymentStatus = action === 'approved' ? 'refunded' : undefined;
 
     await pool.request()
       .input('id', sql.NVarChar, req.params.id)
       .input('returnRequest', sql.NVarChar(sql.MAX), JSON.stringify(returnRequest))
       .input('status', sql.NVarChar, newOrderStatus)
-      .query("UPDATE dbo.orders SET returnRequest = @returnRequest, [status] = @status WHERE id = @id");
+      .input('paymentStatus', sql.NVarChar, paymentStatus)
+      .query(action === 'approved'
+        ? "UPDATE dbo.orders SET returnRequest = @returnRequest, [status] = @status, paymentStatus = @paymentStatus WHERE id = @id"
+        : "UPDATE dbo.orders SET returnRequest = @returnRequest, [status] = @status WHERE id = @id");
 
     await pool.request()
       .input('orderId', sql.NVarChar, req.params.id)

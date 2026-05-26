@@ -7,7 +7,6 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Separator } from '@/components/ui/separator';
 import { orderApi, formatPrice, type Order, type OrderStatus } from '@/lib/api-service';
 import { toast } from 'sonner';
 
@@ -20,6 +19,48 @@ const statusConfig: Record<OrderStatus, { label: string; color: string }> = {
   cancelled:  { label: 'Đã hủy',       color: 'bg-red-100 text-red-800' },
   returned:   { label: 'Hoàn hàng',    color: 'bg-orange-100 text-orange-800' },
 };
+
+const statusFlow: OrderStatus[] = ['pending', 'confirmed', 'processing', 'shipping', 'delivered'];
+
+function getPaymentLabel(paymentStatus: string) {
+  if (paymentStatus === 'paid') return 'Đã thanh toán';
+  if (paymentStatus === 'refunded') return 'Đã hoàn tiền';
+  if (paymentStatus === 'failed') return 'Thanh toán lỗi';
+  return 'Chưa thanh toán';
+}
+
+function getActionButtons(order: Order) {
+  if (order.returnRequest?.status === 'pending') return [];
+
+  if (order.status === 'pending') {
+    return [
+      { status: 'confirmed', label: 'Xác nhận đơn', icon: CheckCircle, variant: 'default' as const },
+      { status: 'cancelled', label: 'Hủy đơn', icon: XCircle, variant: 'destructive' as const },
+    ];
+  }
+
+  if (order.status === 'confirmed') {
+    return [
+      { status: 'processing', label: 'Bắt đầu xử lý', icon: Loader2, variant: 'default' as const },
+      { status: 'cancelled', label: 'Hủy đơn', icon: XCircle, variant: 'destructive' as const },
+    ];
+  }
+
+  if (order.status === 'processing') {
+    return [
+      { status: 'shipping', label: 'Bàn giao vận chuyển', icon: Truck, variant: 'default' as const },
+      { status: 'cancelled', label: 'Hủy đơn', icon: XCircle, variant: 'destructive' as const },
+    ];
+  }
+
+  if (order.status === 'shipping') {
+    return [
+      { status: 'delivered', label: 'Xác nhận đã giao', icon: CheckCircle, variant: 'default' as const },
+    ];
+  }
+
+  return [];
+}
 
 function getImageFileExtension(dataUrl?: string): string {
   if (!dataUrl || !dataUrl.startsWith('data:image/')) return 'png';
@@ -57,7 +98,7 @@ export function AdminOrders() {
     try {
       await orderApi.updateStatus(id, status, note);
       toast.success('Đã cập nhật trạng thái đơn hàng');
-      setOrders(prev => prev.map(o => o.id === id ? { ...o, status: status as OrderStatus } : o));
+      await fetchOrders();
     } catch { toast.error('Lỗi cập nhật trạng thái'); }
     finally { setUpdating(null); }
   };
@@ -143,88 +184,182 @@ export function AdminOrders() {
                         <DialogTrigger asChild>
                           <Button variant="ghost" size="icon" className="h-8 w-8"><Eye className="h-4 w-4" /></Button>
                         </DialogTrigger>
-                        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+                        <DialogContent className="!w-[96vw] !max-w-[96vw] xl:!max-w-[1200px] max-h-[92vh] overflow-y-auto">
                           <DialogHeader><DialogTitle>Chi tiết đơn hàng {order.id}</DialogTitle></DialogHeader>
-                          <div className="space-y-4">
-                            <div className="flex justify-between">
-                              <Badge className={statusConfig[order.status]?.color}>{statusConfig[order.status]?.label}</Badge>
-                              <span className="text-sm text-muted-foreground">{new Date(order.createdAt).toLocaleString('vi-VN')}</span>
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-sm mb-2">Sản phẩm</h4>
-                              {order.items?.map((item, i) => (
-                                <div key={i} className="flex gap-3 py-2 border-b last:border-0">
-                                  <img src={item.productImage} alt="" className="w-12 h-12 rounded object-cover" />
-                                  <div className="flex-1">
-                                    <div className="text-sm">{item.productName}</div>
-                                    {item.customization && (
-                                      <div className="text-xs text-purple-600 mt-0.5">
-                                        Tùy chỉnh: {item.customization.type} - {item.customization.inputType === 'image' ? 'Ảnh thiết kế' : item.customization.text}
-                                      </div>
-                                    )}
-                                    {item.customization?.inputType === 'image' && item.customization.text?.startsWith('data:image/') && (
-                                      <div className="mt-1 flex items-center gap-2">
-                                        <img src={item.customization.text} alt="Logo tùy chỉnh" className="h-12 w-12 rounded border object-cover" />
-                                        <a
-                                          href={item.customization.text}
-                                          download={`${order.id}-${item.productId}-logo.${getImageFileExtension(item.customization.text)}`}
-                                          className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                                        >
-                                          <Download className="h-3 w-3" /> Tải logo
-                                        </a>
-                                      </div>
-                                    )}
-                                    <div className="text-xs text-muted-foreground">x{item.quantity}</div>
-                                  </div>
-                                  <div className="text-sm font-medium">{formatPrice(item.price * item.quantity)}</div>
+                          <div className="grid gap-6 xl:grid-cols-[1.45fr_0.95fr]">
+                            <div className="space-y-5">
+                              <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 xl:flex-row xl:items-center xl:justify-between">
+                                <div>
+                                  <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">Đơn hàng</div>
+                                  <div className="mt-1 text-xl font-semibold text-slate-900">{order.id}</div>
+                                  <div className="mt-1 text-sm text-slate-500">{new Date(order.createdAt).toLocaleString('vi-VN')}</div>
                                 </div>
-                              ))}
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <Badge className={statusConfig[order.status]?.color}>{statusConfig[order.status]?.label}</Badge>
+                                  <Badge variant={order.paymentStatus === 'paid' ? 'default' : order.paymentStatus === 'refunded' ? 'destructive' : 'outline'}>
+                                    {getPaymentLabel(order.paymentStatus)}
+                                  </Badge>
+                                </div>
+                              </div>
+
+                              <div className="rounded-xl border p-4">
+                                <div className="mb-3 text-sm font-semibold">Tiến trình đơn hàng</div>
+                                <div className="grid gap-3 md:grid-cols-5">
+                                  {statusFlow.map((step, index) => {
+                                    const activeIndex = statusFlow.indexOf(order.status as OrderStatus);
+                                    const isDone = activeIndex >= index;
+                                    const isCurrent = order.status === step;
+                                    return (
+                                      <div
+                                        key={step}
+                                        className={`rounded-lg border px-3 py-3 text-center transition ${
+                                          isCurrent
+                                            ? 'border-slate-900 bg-slate-900 text-white'
+                                            : isDone
+                                              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                              : 'border-slate-200 bg-white text-slate-500'
+                                        }`}
+                                      >
+                                        <div className="text-[11px] uppercase tracking-[0.16em]">Bước {index + 1}</div>
+                                        <div className="mt-1 text-sm font-semibold">{statusConfig[step].label}</div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                                {(order.status === 'cancelled' || order.status === 'returned') && (
+                                  <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                                    Trạng thái cuối: {statusConfig[order.status].label}
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="rounded-xl border p-4">
+                                <h4 className="mb-3 text-sm font-semibold">Sản phẩm</h4>
+                                <div className="space-y-3">
+                                  {order.items?.map((item, i) => (
+                                    <div key={i} className="flex gap-3 rounded-lg border border-slate-100 p-3">
+                                      <img src={item.productImage} alt="" className="h-16 w-16 rounded object-cover" />
+                                      <div className="flex-1">
+                                        <div className="text-sm font-medium">{item.productName}</div>
+                                        {item.customization && (
+                                          <div className="mt-1 text-xs text-purple-600">
+                                            Tùy chỉnh: {item.customization.type} - {item.customization.inputType === 'image' ? 'Ảnh thiết kế' : item.customization.text}
+                                          </div>
+                                        )}
+                                        {item.customization?.inputType === 'image' && item.customization.text?.startsWith('data:image/') && (
+                                          <div className="mt-2 flex items-center gap-2">
+                                            <img src={item.customization.text} alt="Logo tùy chỉnh" className="h-12 w-12 rounded border object-cover" />
+                                            <a
+                                              href={item.customization.text}
+                                              download={`${order.id}-${item.productId}-logo.${getImageFileExtension(item.customization.text)}`}
+                                              className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                                            >
+                                              <Download className="h-3 w-3" /> Tải logo
+                                            </a>
+                                          </div>
+                                        )}
+                                        <div className="mt-1 text-xs text-muted-foreground">Số lượng: {item.quantity}</div>
+                                      </div>
+                                      <div className="text-sm font-semibold">{formatPrice(item.price * item.quantity)}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+
+                              <div className="rounded-xl border p-4">
+                                <h4 className="mb-3 text-sm font-semibold">Lịch sử trạng thái</h4>
+                                <div className="space-y-3">
+                                  {order.timeline?.map((entry, i) => (
+                                    <div key={`${entry.status}-${entry.date}-${i}`} className="flex gap-3">
+                                      <div className="mt-1 h-2.5 w-2.5 rounded-full bg-slate-900" />
+                                      <div className="flex-1 rounded-lg border border-slate-100 px-3 py-2">
+                                        <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                                          <div className="text-sm font-medium">{statusConfig[entry.status as OrderStatus]?.label || entry.status}</div>
+                                          <div className="text-xs text-muted-foreground">{new Date(entry.date).toLocaleString('vi-VN')}</div>
+                                        </div>
+                                        {entry.note && <div className="mt-1 text-sm text-muted-foreground">{entry.note}</div>}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
                             </div>
-                            <Separator />
-                            <div className="space-y-1 text-sm">
-                              <div className="flex justify-between"><span>Tạm tính</span><span>{formatPrice(order.subtotal)}</span></div>
-                              <div className="flex justify-between"><span>Phí ship</span><span>{formatPrice(order.shippingFee)}</span></div>
-                              {order.discount > 0 && <div className="flex justify-between text-green-600"><span>Giảm giá</span><span>-{formatPrice(order.discount)}</span></div>}
-                              <div className="flex justify-between font-bold text-lg"><span>Tổng</span><span className="text-red-600">{formatPrice(order.total)}</span></div>
-                            </div>
-                            <Separator />
-                            <div className="text-sm">
-                              <h4 className="font-semibold mb-1">Địa chỉ giao hàng</h4>
-                              <p>{order.shippingAddress?.name} - {order.shippingAddress?.phone}</p>
-                              <p className="text-muted-foreground">{order.shippingAddress?.street}, {order.shippingAddress?.ward}, {order.shippingAddress?.district}, {order.shippingAddress?.city}</p>
-                            </div>
-                            {order.note && <div className="text-sm p-3 bg-muted rounded"><span className="font-medium">Ghi chú:</span> {order.note}</div>}
-                            <div className="flex gap-2 flex-wrap">
-                              {order.status === 'pending' && (
-                                <>
-                                  <Button size="sm" className="gap-1" disabled={updating === order.id} onClick={() => handleStatus(order.id, 'confirmed')}>
-                                    <CheckCircle className="h-3 w-3" /> Xác nhận
-                                  </Button>
-                                  <Button size="sm" variant="destructive" className="gap-1" disabled={updating === order.id} onClick={() => handleStatus(order.id, 'cancelled')}>
-                                    <XCircle className="h-3 w-3" /> Hủy đơn
-                                  </Button>
-                                </>
-                              )}
-                              {order.status === 'confirmed' && (
-                                <Button size="sm" className="gap-1" disabled={updating === order.id} onClick={() => handleStatus(order.id, 'shipping')}>
-                                  <Truck className="h-3 w-3" /> Giao hàng
-                                </Button>
-                              )}
-                              {order.status === 'shipping' && (
-                                <Button size="sm" className="gap-1" disabled={updating === order.id} onClick={() => handleStatus(order.id, 'delivered')}>
-                                  <CheckCircle className="h-3 w-3" /> Đã giao
-                                </Button>
-                              )}
+
+                            <div className="space-y-5">
+                              <div className="rounded-xl border p-4">
+                                <h4 className="mb-3 text-sm font-semibold">Thông tin giao hàng</h4>
+                                <div className="space-y-2 text-sm">
+                                  <div className="font-medium">{order.shippingAddress?.name} - {order.shippingAddress?.phone}</div>
+                                  <div className="text-muted-foreground">{order.shippingAddress?.street}, {order.shippingAddress?.ward}, {order.shippingAddress?.district}, {order.shippingAddress?.city}</div>
+                                  <div className="grid gap-2 pt-2 text-sm md:grid-cols-2">
+                                    <div className="rounded-lg bg-slate-50 px-3 py-2">
+                                      <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Thanh toán</div>
+                                      <div className="mt-1 font-medium">{order.paymentMethod?.toUpperCase()}</div>
+                                    </div>
+                                    <div className="rounded-lg bg-slate-50 px-3 py-2">
+                                      <div className="text-xs uppercase tracking-[0.16em] text-slate-500">Vận chuyển</div>
+                                      <div className="mt-1 font-medium">{order.shippingMethod}</div>
+                                    </div>
+                                  </div>
+                                </div>
+                                {order.note && <div className="mt-3 rounded-lg bg-slate-50 p-3 text-sm"><span className="font-medium">Ghi chú:</span> {order.note}</div>}
+                              </div>
+
+                              <div className="rounded-xl border p-4">
+                                <h4 className="mb-3 text-sm font-semibold">Tổng kết đơn hàng</h4>
+                                <div className="space-y-2 text-sm">
+                                  <div className="flex justify-between"><span>Tạm tính</span><span>{formatPrice(order.subtotal)}</span></div>
+                                  <div className="flex justify-between"><span>Phí ship</span><span>{formatPrice(order.shippingFee)}</span></div>
+                                  {order.discount > 0 && <div className="flex justify-between text-green-600"><span>Giảm giá</span><span>-{formatPrice(order.discount)}</span></div>}
+                                  <div className="flex justify-between border-t pt-3 text-lg font-bold"><span>Tổng cộng</span><span className="text-red-600">{formatPrice(order.total)}</span></div>
+                                </div>
+                              </div>
+
+                              <div className="rounded-xl border p-4">
+                                <h4 className="mb-3 text-sm font-semibold">Thao tác trạng thái</h4>
+                                <div className="space-y-3">
+                                  <div className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                                    Trạng thái hiện tại: <span className="font-semibold text-slate-900">{statusConfig[order.status]?.label}</span>
+                                  </div>
+                                  <div className="grid gap-2">
+                                    {getActionButtons(order).map((action) => {
+                                      const Icon = action.icon;
+                                      return (
+                                        <Button
+                                          key={action.status}
+                                          size="sm"
+                                          variant={action.variant}
+                                          className="justify-start gap-2"
+                                          disabled={updating === order.id}
+                                          onClick={() => handleStatus(order.id, action.status)}
+                                        >
+                                          <Icon className={`h-4 w-4 ${action.status === 'processing' && updating === order.id ? 'animate-spin' : ''}`} />
+                                          {action.label}
+                                        </Button>
+                                      );
+                                    })}
+                                    {getActionButtons(order).length === 0 && (
+                                      <div className="rounded-lg border border-dashed px-3 py-3 text-sm text-muted-foreground">
+                                        Không còn thao tác chuyển trạng thái trực tiếp cho đơn này.
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
                               {order.returnRequest && order.returnRequest.status === 'pending' && (
-                                <>
-                                  <p className="w-full text-sm text-orange-600 font-medium">⚠️ Lý do hoàn: {order.returnRequest.reason}</p>
-                                  <Button size="sm" variant="outline" className="gap-1" disabled={updating === order.id} onClick={() => handleReturn(order.id, 'approved')}>
-                                    <RotateCcw className="h-3 w-3" /> Duyệt hoàn
-                                  </Button>
-                                  <Button size="sm" variant="outline" className="gap-1 text-red-500" disabled={updating === order.id} onClick={() => handleReturn(order.id, 'rejected')}>
-                                    <XCircle className="h-3 w-3" /> Từ chối
-                                  </Button>
-                                </>
+                                <div className="rounded-xl border border-orange-200 bg-orange-50 p-4">
+                                  <div className="text-sm font-semibold text-orange-800">Yêu cầu hoàn hàng</div>
+                                  <div className="mt-1 text-sm text-orange-700">Lý do: {order.returnRequest.reason}</div>
+                                  <div className="mt-3 flex flex-wrap gap-2">
+                                    <Button size="sm" variant="outline" className="gap-2 border-orange-300 bg-white" disabled={updating === order.id} onClick={() => handleReturn(order.id, 'approved')}>
+                                      <RotateCcw className="h-4 w-4" /> Duyệt hoàn hàng
+                                    </Button>
+                                    <Button size="sm" variant="outline" className="gap-2 border-red-300 bg-white text-red-600" disabled={updating === order.id} onClick={() => handleReturn(order.id, 'rejected')}>
+                                      <XCircle className="h-4 w-4" /> Từ chối yêu cầu
+                                    </Button>
+                                  </div>
+                                </div>
                               )}
                             </div>
                           </div>
