@@ -33,7 +33,7 @@ export interface Product {
   wholesalePrice?: WholesalePrice[];
   status: 'active' | 'inactive'; createdAt: string;
 }
-export type PaymentMethod = 'cod' | 'vnpay';
+export type PaymentMethod = 'cod' | 'vnpay' | 'payos';
 export type ShippingMethod = 'standard' | 'express' | 'same_day';
 export interface CartItem { lineItemId?: string; productId: string; quantity: number; price?: number; product?: Product; customization?: { type: string; text: string; extraPrice?: number; inputType?: string } }
 export interface Address { id: string; name: string; phone: string; street: string; ward?: string; district?: string; city: string; isDefault: boolean; }

@@ -28,6 +28,7 @@ const paymentMethodLabels: Record<string, string> = {
   momo: 'MoMo',
   zalopay: 'ZaloPay',
   vnpay: 'VNPay',
+  payos: 'PayOS',
 };
 
 function OrderDetail({ order, onClose }: { order: Order; onClose: () => void }) {

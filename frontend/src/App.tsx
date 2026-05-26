@@ -26,6 +26,7 @@ import { ComparePage } from '@/pages/ComparePage';
 import { CustomizePage } from '@/pages/CustomizePage';
 import { WholesalePage } from '@/pages/WholesalePage';
 import { PaymentVNPayReturnPage } from '@/pages/PaymentVNPayReturnPage';
+import { PaymentPayOSReturnPage } from '@/pages/PaymentPayOSReturnPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 
 // Admin Pages
@@ -85,6 +86,7 @@ function App() {
               <Route path="/customize" element={<CustomizePage />} />
               <Route path="/wholesale" element={<WholesalePage />} />
               <Route path="/payment/vnpay-return" element={<PaymentVNPayReturnPage />} />
+              <Route path="/payment/payos-return" element={<PaymentPayOSReturnPage />} />
             </Route>
 
             {/* Admin pages with guard + layout */}

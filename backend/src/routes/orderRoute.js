@@ -3,11 +3,14 @@ const { getPool, sql } = require('../libs/db');
 const { authMiddleware, adminMiddleware } = require('../middlewares/authMiddleware');
 const { safeJsonParse } = require('../utils/mapRows');
 const { VNPay, ignoreLogger } = require('vnpay');
+const { PayOS } = require('@payos/node');
 
 const router = express.Router();
 
 const FRONTEND_BASE_URL = process.env.FRONTEND_BASE_URL || 'http://localhost:5173';
 const VNPAY_RETURN_URL = process.env.VNPAY_RETURN_URL || 'http://localhost:5000/api/orders/vnpay-return';
+const PAYOS_RETURN_URL = process.env.PAYOS_RETURN_URL || new URL('/payment/payos-return', FRONTEND_BASE_URL).toString();
+const PAYOS_CANCEL_URL = process.env.PAYOS_CANCEL_URL || PAYOS_RETURN_URL;
 
 function resolveVNPayHost() {
   const raw = process.env.VNPAY_HOST || process.env.VNPAY_URL || 'https://sandbox.vnpayment.vn';
@@ -36,6 +39,16 @@ function buildFrontendReturnUrl(params = {}) {
   return url.toString();
 }
 
+function buildFrontendPaymentPage(pathname, params = {}) {
+  const url = new URL(pathname, FRONTEND_BASE_URL);
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      url.searchParams.set(key, String(value));
+    }
+  });
+  return url.toString();
+}
+
 function getVNPayGateway() {
   const tmnCode = process.env.VNPAY_TMN_CODE;
   const secureSecret = process.env.VNPAY_SECURE_SECRET || process.env.VNPAY_HASH_SECRET;
@@ -51,6 +64,91 @@ function getVNPayGateway() {
     enableLog: false,
     loggerFn: ignoreLogger,
   });
+}
+
+function getPayOSGateway() {
+  const clientId = process.env.PAYOS_CLIENT_ID;
+  const apiKey = process.env.PAYOS_API_KEY;
+  const checksumKey = process.env.PAYOS_CHECKSUM_KEY;
+
+  if (!clientId || !apiKey || !checksumKey) return null;
+
+  return new PayOS({
+    clientId,
+    apiKey,
+    checksumKey,
+    partnerCode: process.env.PAYOS_PARTNER_CODE || undefined,
+    baseURL: process.env.PAYOS_BASE_URL || undefined,
+  });
+}
+
+function getPayOSOrderCode(orderId) {
+  const digits = String(orderId || '').replace(/\D/g, '');
+  const orderCode = Number(digits);
+  if (!Number.isSafeInteger(orderCode) || orderCode <= 0) {
+    throw new Error('Không thể tạo orderCode hợp lệ cho PayOS');
+  }
+  return orderCode;
+}
+
+function getOrderIdFromPayOSOrderCode(orderCode) {
+  const numericCode = Number(orderCode);
+  if (!Number.isSafeInteger(numericCode) || numericCode <= 0) return '';
+  return `ORD-${String(numericCode).padStart(8, '0')}`;
+}
+
+async function markOrderPaid(pool, orderId, successNote) {
+  const orderResult = await pool.request()
+    .input('id', sql.NVarChar, orderId)
+    .query('SELECT TOP 1 id, paymentStatus, voucherCode, [status] FROM dbo.orders WHERE id = @id');
+
+  const order = orderResult.recordset[0];
+  if (!order) {
+    return { ok: false, reason: 'order_not_found', orderId };
+  }
+
+  await pool.request()
+    .input('id', sql.NVarChar, orderId)
+    .query("UPDATE dbo.orders SET paymentStatus = 'paid', [status] = CASE WHEN [status] = 'pending' THEN 'confirmed' ELSE [status] END WHERE id = @id");
+
+  await pool.request()
+    .input('orderId', sql.NVarChar, orderId)
+    .input('status', sql.NVarChar, 'confirmed')
+    .input('note', sql.NVarChar, successNote)
+    .query("IF NOT EXISTS (SELECT 1 FROM dbo.order_timeline WHERE orderId = @orderId AND [status] = @status) INSERT INTO dbo.order_timeline (orderId, status, date, note) VALUES (@orderId, @status, SYSUTCDATETIME(), @note)");
+
+  if (order.voucherCode && order.paymentStatus !== 'paid') {
+    await adjustVoucherUsage(pool, order.voucherCode, 'increment');
+  }
+
+  return { ok: true, orderId };
+}
+
+async function markOrderFailed(pool, orderId, failureNote) {
+  const orderResult = await pool.request()
+    .input('id', sql.NVarChar, orderId)
+    .query('SELECT TOP 1 id, paymentStatus FROM dbo.orders WHERE id = @id');
+
+  const order = orderResult.recordset[0];
+  if (!order) {
+    return { ok: false, reason: 'order_not_found', orderId };
+  }
+
+  if (order.paymentStatus === 'paid') {
+    return { ok: true, orderId };
+  }
+
+  await pool.request()
+    .input('id', sql.NVarChar, orderId)
+    .query("UPDATE dbo.orders SET paymentStatus = 'failed', [status] = 'cancelled' WHERE id = @id");
+
+  await pool.request()
+    .input('orderId', sql.NVarChar, orderId)
+    .input('status', sql.NVarChar, 'cancelled')
+    .input('note', sql.NVarChar, failureNote)
+    .query("IF NOT EXISTS (SELECT 1 FROM dbo.order_timeline WHERE orderId = @orderId AND [status] = @status) INSERT INTO dbo.order_timeline (orderId, status, date, note) VALUES (@orderId, @status, SYSUTCDATETIME(), @note)");
+
+  return { ok: false, orderId, reason: 'payment_failed' };
 }
 
 async function processVNPayReturnQuery(query) {
@@ -71,46 +169,85 @@ async function processVNPayReturnQuery(query) {
 
   const isPaid = verify.isSuccess && String(verify.vnp_ResponseCode) === '00';
   const pool = await getPool();
-  const orderResult = await pool.request()
-    .input('id', sql.NVarChar, orderId)
-    .query('SELECT TOP 1 id, paymentStatus, voucherCode FROM dbo.orders WHERE id = @id');
-
-  const order = orderResult.recordset[0];
-  if (!order) {
-    return { ok: false, reason: 'order_not_found', orderId };
-  }
 
   if (isPaid) {
-    await pool.request()
-      .input('id', sql.NVarChar, orderId)
-      .query("UPDATE dbo.orders SET paymentStatus = 'paid', [status] = CASE WHEN [status] = 'pending' THEN 'confirmed' ELSE [status] END WHERE id = @id");
-
-    await pool.request()
-      .input('orderId', sql.NVarChar, orderId)
-      .input('status', sql.NVarChar, 'confirmed')
-      .input('note', sql.NVarChar, 'Thanh toán VNPay thành công')
-      .query("IF NOT EXISTS (SELECT 1 FROM dbo.order_timeline WHERE orderId = @orderId AND [status] = @status) INSERT INTO dbo.order_timeline (orderId, status, date, note) VALUES (@orderId, @status, SYSUTCDATETIME(), @note)");
-
-    if (order.voucherCode && order.paymentStatus !== 'paid') {
-      await pool.request()
-        .input('code', sql.NVarChar, String(order.voucherCode).toUpperCase())
-        .query('UPDATE dbo.vouchers SET usedCount = usedCount + 1 WHERE code = @code');
-    }
-
-    return { ok: true, orderId, code: String(verify.vnp_ResponseCode || '00') };
+    const result = await markOrderPaid(pool, orderId, 'Thanh toán VNPay thành công');
+    return { ...result, code: String(verify.vnp_ResponseCode || '00') };
   }
 
-  await pool.request()
-    .input('id', sql.NVarChar, orderId)
-    .query("UPDATE dbo.orders SET paymentStatus = 'failed', [status] = 'cancelled' WHERE id = @id");
+  const result = await markOrderFailed(pool, orderId, `Thanh toán VNPay thất bại: ${verify.message || 'unknown'}`);
+  return { ...result, code: String(verify.vnp_ResponseCode || ''), message: verify.message };
+}
 
-  await pool.request()
-    .input('orderId', sql.NVarChar, orderId)
-    .input('status', sql.NVarChar, 'cancelled')
-    .input('note', sql.NVarChar, `Thanh toán VNPay thất bại: ${verify.message || 'unknown'}`)
-    .query("INSERT INTO dbo.order_timeline (orderId, status, date, note) VALUES (@orderId, @status, SYSUTCDATETIME(), @note)");
+async function processPayOSPaymentStatus({ orderCode, paymentLinkId } = {}) {
+  const payos = getPayOSGateway();
+  if (!payos) {
+    return { ok: false, reason: 'gateway_not_configured' };
+  }
 
-  return { ok: false, orderId, reason: 'payment_failed', code: String(verify.vnp_ResponseCode || ''), message: verify.message };
+  const normalizedOrderCode = Number(orderCode);
+  if (!Number.isSafeInteger(normalizedOrderCode) || normalizedOrderCode <= 0) {
+    return { ok: false, reason: 'missing_order_code' };
+  }
+
+  const payment = await payos.paymentRequests.get(paymentLinkId || normalizedOrderCode);
+  const orderId = getOrderIdFromPayOSOrderCode(payment.orderCode || normalizedOrderCode);
+  if (!orderId) {
+    return { ok: false, reason: 'order_not_found' };
+  }
+
+  const pool = await getPool();
+  if (payment.status === 'PAID') {
+    const result = await markOrderPaid(pool, orderId, 'Thanh toán PayOS thành công');
+    return { ...result, orderId, orderCode: payment.orderCode, paymentStatus: payment.status };
+  }
+
+  if (['PENDING', 'PROCESSING'].includes(String(payment.status))) {
+    return {
+      ok: false,
+      pending: true,
+      orderId,
+      orderCode: payment.orderCode,
+      paymentStatus: payment.status,
+      reason: 'payment_pending',
+    };
+  }
+
+  const result = await markOrderFailed(pool, orderId, `Thanh toán PayOS thất bại: ${payment.status}`);
+  return { ...result, orderId, orderCode: payment.orderCode, paymentStatus: payment.status };
+}
+
+async function processPayOSWebhook(payload) {
+  const payos = getPayOSGateway();
+  if (!payos) {
+    return { ok: false, reason: 'gateway_not_configured' };
+  }
+
+  const webhookData = await payos.webhooks.verify(payload);
+  return processPayOSPaymentStatus({
+    orderCode: webhookData.orderCode,
+    paymentLinkId: webhookData.paymentLinkId,
+  });
+}
+
+async function cancelPayOSPaymentLinkByOrderId(orderId, cancellationReason) {
+  const payos = getPayOSGateway();
+  if (!payos) return;
+
+  try {
+    await payos.paymentRequests.cancel(getPayOSOrderCode(orderId), cancellationReason);
+  } catch (error) {
+    const message = typeof error?.message === 'string' ? error.message : '';
+    if (
+      message.includes('Payment link not found')
+      || message.includes('payment link not found')
+      || message.includes('already cancelled')
+      || message.includes('already paid')
+    ) {
+      return;
+    }
+    throw error;
+  }
 }
 
 async function buildOrders(pool, userId) {
@@ -266,8 +403,8 @@ router.post('/', authMiddleware, async (req, res, next) => {
     } = req.body;
 
     const normalizedPaymentMethod = paymentMethod || 'cod';
-    if (!['cod', 'vnpay'].includes(normalizedPaymentMethod)) {
-      return res.status(400).json({ message: 'Chỉ hỗ trợ thanh toán COD hoặc VNPay' });
+    if (!['cod', 'vnpay', 'payos'].includes(normalizedPaymentMethod)) {
+      return res.status(400).json({ message: 'Chỉ hỗ trợ thanh toán COD, VNPay hoặc PayOS' });
     }
 
     if (!Array.isArray(items) || items.length === 0) {
@@ -422,6 +559,37 @@ router.post('/', authMiddleware, async (req, res, next) => {
       });
     }
 
+    if (normalizedPaymentMethod === 'payos') {
+      const payos = getPayOSGateway();
+      if (!payos) {
+        return res.status(500).json({ message: 'PayOS chưa được cấu hình trên server' });
+      }
+
+      const payableAmount = Math.round(Number(computedTotal || 0));
+      if (!Number.isFinite(payableAmount) || payableAmount <= 0) {
+        return res.status(400).json({ message: 'Số tiền thanh toán không hợp lệ' });
+      }
+
+      const paymentLink = await payos.paymentRequests.create({
+        orderCode: getPayOSOrderCode(orderId),
+        amount: payableAmount,
+        description: `Thanh toan ${orderId}`.slice(0, 25),
+        returnUrl: PAYOS_RETURN_URL,
+        cancelUrl: PAYOS_CANCEL_URL,
+        buyerName: shippingAddress?.name ? String(shippingAddress.name).slice(0, 100) : undefined,
+        buyerPhone: shippingAddress?.phone ? String(shippingAddress.phone).slice(0, 20) : undefined,
+        buyerAddress: [shippingAddress?.street, shippingAddress?.ward, shippingAddress?.district, shippingAddress?.city].filter(Boolean).join(', ').slice(0, 255) || undefined,
+        items: [{ name: `Don hang ${orderId}`.slice(0, 25), quantity: 1, price: payableAmount }],
+      });
+
+      return res.status(201).json({
+        id: orderId,
+        paymentMethod: normalizedPaymentMethod,
+        paymentStatus: 'pending',
+        paymentUrl: paymentLink.checkoutUrl,
+      });
+    }
+
     return res.status(201).json({ id: orderId, message: 'Order created successfully' });
   } catch (error) {
     return next(error);
@@ -452,6 +620,49 @@ router.get('/vnpay-verify', async (req, res, next) => {
   }
 });
 
+router.get('/payos-verify', async (req, res, next) => {
+  try {
+    const result = await processPayOSPaymentStatus({
+      orderCode: req.query.orderCode,
+      paymentLinkId: req.query.paymentLinkId,
+    });
+
+    if (result.ok) {
+      return res.json({ success: true, orderId: result.orderId, orderCode: result.orderCode, paymentStatus: result.paymentStatus });
+    }
+
+    if (result.pending) {
+      return res.status(202).json({
+        success: false,
+        pending: true,
+        orderId: result.orderId,
+        orderCode: result.orderCode,
+        paymentStatus: result.paymentStatus,
+        reason: result.reason,
+      });
+    }
+
+    return res.status(400).json({
+      success: false,
+      orderId: result.orderId,
+      orderCode: result.orderCode,
+      paymentStatus: result.paymentStatus,
+      reason: result.reason,
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post('/payos-webhook', async (req, res, next) => {
+  try {
+    await processPayOSWebhook(req.body);
+    return res.json({ success: true });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 // Customer cancel pending order
 router.post('/:id/cancel', authMiddleware, async (req, res, next) => {
   try {
@@ -459,7 +670,7 @@ router.post('/:id/cancel', authMiddleware, async (req, res, next) => {
     const result = await pool.request()
       .input('id', sql.NVarChar, req.params.id)
       .input('userId', sql.NVarChar, req.user.userId)
-      .query("SELECT TOP 1 id, [status] FROM dbo.orders WHERE id = @id AND userId = @userId");
+      .query("SELECT TOP 1 id, [status], paymentMethod FROM dbo.orders WHERE id = @id AND userId = @userId");
 
     const order = result.recordset[0];
     if (!order) return res.status(404).json({ message: 'Order not found' });
@@ -474,6 +685,10 @@ router.post('/:id/cancel', authMiddleware, async (req, res, next) => {
     await pool.request()
       .input('orderId', sql.NVarChar, req.params.id)
       .query("INSERT INTO dbo.order_timeline (orderId, status, date, note) VALUES (@orderId, 'cancelled', SYSUTCDATETIME(), N'Khách hàng hủy đơn')");
+
+    if (order.paymentMethod === 'payos') {
+      await cancelPayOSPaymentLinkByOrderId(req.params.id, 'Khach hang huy don');
+    }
 
     return res.json({ message: 'Order cancelled' });
   } catch (error) {
@@ -540,7 +755,7 @@ router.patch('/:id/status', authMiddleware, adminMiddleware, async (req, res, ne
     const pool = await getPool();
     const orderResult = await pool.request()
       .input('id', sql.NVarChar, req.params.id)
-      .query('SELECT TOP 1 id, [status], paymentStatus, voucherCode FROM dbo.orders WHERE id = @id');
+      .query('SELECT TOP 1 id, [status], paymentStatus, voucherCode, paymentMethod FROM dbo.orders WHERE id = @id');
 
     const order = orderResult.recordset[0];
     if (!order) {
@@ -569,6 +784,10 @@ router.patch('/:id/status', authMiddleware, adminMiddleware, async (req, res, ne
 
     if (status === 'cancelled' && order.voucherCode) {
       await adjustVoucherUsage(pool, order.voucherCode, 'decrement');
+    }
+
+    if (status === 'cancelled' && order.paymentMethod === 'payos') {
+      await cancelPayOSPaymentLinkByOrderId(req.params.id, 'Admin huy don');
     }
 
     await pool.request()

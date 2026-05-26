@@ -73,12 +73,12 @@ export function CheckoutPage() {
       };
       const result = await orderApi.createOrder(orderData);
 
-      if (paymentMethod === 'vnpay') {
+      if (paymentMethod === 'vnpay' || paymentMethod === 'payos') {
         if (!result.paymentUrl) {
-          toast.error('Không tạo được URL thanh toán VNPay. Vui lòng thử lại.');
+          toast.error(`Không tạo được URL thanh toán ${paymentMethod === 'vnpay' ? 'VNPay' : 'PayOS'}. Vui lòng thử lại.`);
           return;
         }
-        toast.success('Đang chuyển sang cổng thanh toán VNPay...');
+        toast.success(`Đang chuyển sang cổng thanh toán ${paymentMethod === 'vnpay' ? 'VNPay' : 'PayOS'}...`);
         window.location.assign(result.paymentUrl);
         return;
       }
@@ -248,6 +248,7 @@ export function CheckoutPage() {
                   {[
                     { value: 'cod', label: 'Thanh toán khi nhận hàng (COD)', icon: <Banknote className="h-5 w-5 text-gray-500" /> },
                     { value: 'vnpay', label: 'VNPay', icon: <ShieldCheck className="h-5 w-5 text-red-500" /> },
+                    { value: 'payos', label: 'PayOS', icon: <ShieldCheck className="h-5 w-5 text-emerald-600" /> },
                   ].map(method => (
                     <label key={method.value} className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-accent ${paymentMethod === method.value ? 'border-primary bg-primary/5' : ''}`}>
                       <RadioGroupItem value={method.value} />
