@@ -55,8 +55,27 @@ export interface Order {
 }
 export interface Voucher { id: string; code: string; type: 'percentage'|'fixed'; value: number; minOrderValue: number; maxDiscount?: number; usageLimit: number; usedCount: number; startDate: string; endDate: string; status: 'active'|'expired'|'disabled'; description?: string; }
 export interface DashboardStats { totalRevenue: number; totalOrders: number; totalProducts: number; totalCustomers: number; pendingOrders: number; lowStockProducts: number; newCustomersThisMonth: number; returnRate: number; ordersByStatus: {status:string;count:number}[]; topProducts: {name:string;sold:number;revenue:number}[]; revenueByMonth: {month:string;revenue:number;orders:number}[]; }
-export interface ChatMessage { id: string; senderId: string; senderName: string; senderRole: 'admin'|'customer'; targetUserId?: string; message: string; timestamp: string; isRead: boolean; }
+export type ChatChannel = 'ai' | 'support';
+export interface ChatRecommendedProduct {
+  id: string;
+  slug: string;
+  name: string;
+  image: string;
+  price: number;
+  originalPrice: number;
+  rating: number;
+  reviewCount: number;
+  sold: number;
+  isFlashSale: boolean;
+  isCustomizable: boolean;
+  reason: string;
+}
+export interface ChatMessageMetadata {
+  recommendedProducts?: ChatRecommendedProduct[];
+}
+export interface ChatMessage { id: string; channel: ChatChannel; senderId: string; senderName: string; senderRole: 'admin'|'customer'; targetUserId?: string; message: string; metadata?: ChatMessageMetadata | null; timestamp: string; isRead: boolean; }
 export interface ChatConversation { userId: string; userName: string; userAvatar?: string; lastMessage: string; lastMessageAt: string; unreadCount: number; }
+export interface ChatSendMessageResponse { id: string; message: string; aiMessage?: ChatMessage | null; aiReplyScheduled?: boolean; }
 
 
 // ─── Utility ─────────────────────────────────────────────────────────────────
@@ -200,13 +219,21 @@ export const dashboardApi = {
 
 // ─── Chat ────────────────────────────────────────────────────────────────────
 
-export const chatApi = {
-  getConversations: () => api.get<ChatConversation[]>('/chat/conversations').then(r => r.data),
+export const aiChatApi = {
+  getMessages: () =>
+    api.get<ChatMessage[]>('/chat/ai/messages').then(r => r.data),
+  sendMessage: (message: string) =>
+    api.post<ChatSendMessageResponse>('/chat/ai/messages', { message }).then(r => r.data),
+  markRead: () => api.patch('/chat/ai/messages/read'),
+};
+
+export const supportChatApi = {
+  getConversations: () => api.get<ChatConversation[]>('/chat/support/conversations').then(r => r.data),
   getMessages: (userId?: string) =>
-    api.get<ChatMessage[]>('/chat/messages', { params: userId ? { userId } : undefined }).then(r => r.data),
+    api.get<ChatMessage[]>('/chat/support/messages', { params: userId ? { userId } : undefined }).then(r => r.data),
   sendMessage: (message: string, targetUserId?: string) =>
-    api.post('/chat/messages', { message, targetUserId }).then(r => r.data),
-  markRead: (userId?: string) => api.patch('/chat/messages/read', userId ? { userId } : undefined),
+    api.post<ChatSendMessageResponse>('/chat/support/messages', { message, targetUserId }).then(r => r.data),
+  markRead: (userId?: string) => api.patch('/chat/support/messages/read', userId ? { userId } : undefined),
 };
 
 // ─── Wishlist ────────────────────────────────────────────────────────────────

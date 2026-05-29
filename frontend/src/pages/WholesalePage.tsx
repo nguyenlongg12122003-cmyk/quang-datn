@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { catalogApi, chatApi, formatPrice, type Product } from '@/lib/api-service';
+import { catalogApi, supportChatApi, formatPrice, type Product } from '@/lib/api-service';
 import { useAuthStore } from '@/store/auth-store';
 import { toast } from 'sonner';
 
@@ -58,7 +58,7 @@ export function WholesalePage() {
         `So luong du kien: ${quantity}`,
         `Yeu cau: ${note || 'Khong co'}`,
       ];
-      await chatApi.sendMessage(messageLines.join('\n'));
+      await supportChatApi.sendMessage(messageLines.join('\n'));
 
       setSubmitted(true);
       toast.success('Đã gửi yêu cầu báo giá đến bộ phận kinh doanh');

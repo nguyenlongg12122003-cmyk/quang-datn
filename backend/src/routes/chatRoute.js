@@ -1,33 +1,112 @@
 const express = require('express');
 const { getPool, sql } = require('../libs/db');
 const { authMiddleware, adminMiddleware } = require('../middlewares/authMiddleware');
+const { safeJsonParse } = require('../utils/mapRows');
+const {
+  CHAT_CHANNELS,
+  isAdminRole,
+  sendAiChatMessage,
+  sendSupportChatMessage,
+} = require('../services/chatService');
 
 const router = express.Router();
 
-// ==================== CONVERSATIONS (Admin only) ====================
-// Returns list of unique customers who have sent messages, with unread count and last message
+function normalizeMessages(rows) {
+  return rows.map((row) => ({
+    ...row,
+    metadata: safeJsonParse(row.metadata, null),
+    isRead: Boolean(row.isRead),
+  }));
+}
 
-router.get('/conversations', authMiddleware, adminMiddleware, async (_req, res, next) => {
+function ensureCustomer(req, res) {
+  if (isAdminRole(req.user.role)) {
+    res.status(403).json({ message: 'Tính năng này chỉ dành cho khách hàng' });
+    return false;
+  }
+  return true;
+}
+
+async function fetchConversationMessages({ userId, channel }) {
+  const pool = await getPool();
+  const result = await pool.request()
+    .input('userId', sql.NVarChar, userId)
+    .input('channel', sql.NVarChar, channel)
+    .query(`
+      SELECT *
+      FROM dbo.chat_messages
+      WHERE channel = @channel
+        AND (senderId = @userId OR targetUserId = @userId)
+      ORDER BY [timestamp] ASC
+    `);
+
+  return normalizeMessages(result.recordset);
+}
+
+async function markCustomerMessagesRead({ userId, channel }) {
+  const pool = await getPool();
+  await pool.request()
+    .input('userId', sql.NVarChar, userId)
+    .input('channel', sql.NVarChar, channel)
+    .query(`
+      UPDATE dbo.chat_messages
+      SET isRead = 1
+      WHERE channel = @channel
+        AND targetUserId = @userId
+        AND senderRole = 'admin'
+    `);
+}
+
+async function markSupportConversationReadForAdmin(userId) {
+  const pool = await getPool();
+  await pool.request()
+    .input('userId', sql.NVarChar, userId)
+    .query(`
+      UPDATE dbo.chat_messages
+      SET isRead = 1
+      WHERE channel = 'support'
+        AND senderId = @userId
+        AND senderRole = 'customer'
+    `);
+}
+
+router.get('/support/conversations', authMiddleware, adminMiddleware, async (_req, res, next) => {
   try {
     const pool = await getPool();
-
-    // Get all unique senders (customers) with latest message and unread count
     const result = await pool.request().query(`
+      WITH conversation_messages AS (
+        SELECT
+          CASE
+            WHEN m.senderRole = 'customer' THEN m.senderId
+            ELSE m.targetUserId
+          END AS conversationUserId,
+          m.senderRole,
+          m.message,
+          m.[timestamp],
+          m.isRead
+        FROM dbo.chat_messages m
+        WHERE m.channel = 'support'
+          AND (
+            (m.senderRole = 'customer' AND m.senderId IS NOT NULL)
+            OR (m.senderRole = 'admin' AND m.targetUserId IS NOT NULL)
+          )
+      )
       SELECT
-        m.senderId AS userId,
+        cm.conversationUserId AS userId,
         MAX(u.name) AS userName,
         MAX(u.avatar) AS userAvatar,
-        MAX(m.[timestamp]) AS lastMessageAt,
+        MAX(cm.[timestamp]) AS lastMessageAt,
         (
-          SELECT TOP 1 message FROM dbo.chat_messages
-          WHERE senderId = m.senderId
-          ORDER BY [timestamp] DESC
+          SELECT TOP 1 cm2.message
+          FROM conversation_messages cm2
+          WHERE cm2.conversationUserId = cm.conversationUserId
+          ORDER BY cm2.[timestamp] DESC
         ) AS lastMessage,
-        SUM(CASE WHEN m.isRead = 0 AND m.senderRole = 'customer' THEN 1 ELSE 0 END) AS unreadCount
-      FROM dbo.chat_messages m
-      LEFT JOIN dbo.users u ON u.id = m.senderId
-      WHERE m.senderRole = 'customer'
-      GROUP BY m.senderId
+        SUM(CASE WHEN cm.isRead = 0 AND cm.senderRole = 'customer' THEN 1 ELSE 0 END) AS unreadCount
+      FROM conversation_messages cm
+      LEFT JOIN dbo.users u ON u.id = cm.conversationUserId
+      WHERE cm.conversationUserId IS NOT NULL
+      GROUP BY cm.conversationUserId
       ORDER BY lastMessageAt DESC
     `);
 
@@ -37,129 +116,111 @@ router.get('/conversations', authMiddleware, adminMiddleware, async (_req, res, 
   }
 });
 
-// ==================== MESSAGES ====================
-// Customer: GET own messages. Admin: GET messages for specific userId
-
-router.get('/messages', authMiddleware, async (req, res, next) => {
+router.get('/support/messages', authMiddleware, async (req, res, next) => {
   try {
-    const pool = await getPool();
-    const isAdmin = req.user.role === 'admin' || req.user.role === 'staff';
+    const isAdmin = isAdminRole(req.user.role);
+    const userId = isAdmin ? req.query.userId : req.user.userId;
 
-    let targetUserId;
-    if (isAdmin) {
-      targetUserId = req.query.userId;
-      if (!targetUserId) {
-        return res.status(400).json({ message: 'userId query param required for admin' });
-      }
-    } else {
-      targetUserId = req.user.userId;
+    if (isAdmin && !userId) {
+      return res.status(400).json({ message: 'userId query param required for admin' });
     }
 
-    // Fetch all messages belonging to the conversation of this customer
-    const result = await pool.request()
-      .input('userId', sql.NVarChar, targetUserId)
-      .query(`
-        SELECT *
-        FROM dbo.chat_messages
-        WHERE senderId = @userId OR targetUserId = @userId
-        ORDER BY [timestamp] ASC
-      `);
-
-    const messages = result.recordset.map(r => ({ ...r, isRead: Boolean(r.isRead) }));
+    const messages = await fetchConversationMessages({ userId, channel: CHAT_CHANNELS.SUPPORT });
     return res.json(messages);
   } catch (error) {
     return next(error);
   }
 });
 
-// POST a message
-// Customer: senderId = self, targetUserId = null (auto = admin)
-// Admin: senderId = self, targetUserId = customer's userId (required)
-
-router.post('/messages', authMiddleware, async (req, res, next) => {
+router.post('/support/messages', authMiddleware, async (req, res, next) => {
   try {
     const { message, targetUserId } = req.body;
     if (!message || !message.trim()) {
       return res.status(400).json({ message: 'Message is required' });
     }
 
-    const isAdmin = req.user.role === 'admin' || req.user.role === 'staff';
-
+    const isAdmin = isAdminRole(req.user.role);
     if (isAdmin && !targetUserId) {
       return res.status(400).json({ message: 'targetUserId is required when admin sends a message' });
     }
 
-    // Get sender name
-    const pool = await getPool();
-    const userResult = await pool.request()
-      .input('userId', sql.NVarChar, req.user.userId)
-      .query('SELECT TOP 1 name FROM dbo.users WHERE id = @userId');
-    const senderName = userResult.recordset[0]?.name || req.user.email;
-
-    const id = `msg-${Date.now()}`;
-    const messageText = message.trim();
-    const timestamp = new Date().toISOString();
-    await pool.request()
-      .input('id', sql.NVarChar, id)
-      .input('senderId', sql.NVarChar, req.user.userId)
-      .input('senderName', sql.NVarChar, senderName)
-      .input('senderRole', sql.NVarChar, isAdmin ? 'admin' : 'customer')
-      .input('targetUserId', sql.NVarChar, isAdmin ? targetUserId : null)
-      .input('message', sql.NVarChar(sql.MAX), messageText)
-      .query(`
-        INSERT INTO dbo.chat_messages (id, senderId, senderName, senderRole, targetUserId, message, [timestamp], isRead)
-        VALUES (@id, @senderId, @senderName, @senderRole, @targetUserId, @message, SYSUTCDATETIME(), 0)
-      `);
-
     const io = req.app.get('io');
-    const msgPayload = {
-      id,
+    const { chatMessage } = await sendSupportChatMessage({
+      io,
       senderId: req.user.userId,
-      senderName,
+      senderEmail: req.user.email,
       senderRole: isAdmin ? 'admin' : 'customer',
-      targetUserId: isAdmin ? targetUserId : null,
-      message: messageText,
-      timestamp,
-      isRead: false,
-    };
+      targetUserId,
+      message,
+    });
 
-    if (io) {
-      if (isAdmin) {
-        io.to(`user:${targetUserId}`).emit('new_message', msgPayload);
-        io.to('admin').emit('new_message', msgPayload);
-      } else {
-        io.to('admin').emit('new_message', msgPayload);
-        io.to(`user:${req.user.userId}`).emit('new_message', msgPayload);
-      }
-    }
-
-    return res.status(201).json({ id, message: 'Message sent' });
+    return res.status(201).json({
+      id: chatMessage.id,
+      message: 'Message sent',
+    });
   } catch (error) {
     return next(error);
   }
 });
 
-// PATCH: mark messages from a specific user as read (admin marks customer messages as read)
-router.patch('/messages/read', authMiddleware, async (req, res, next) => {
+router.patch('/support/messages/read', authMiddleware, async (req, res, next) => {
   try {
-    const isAdmin = req.user.role === 'admin' || req.user.role === 'staff';
-    const pool = await getPool();
-
-    if (isAdmin) {
-      // Admin marks all messages from a specific customer as read
+    if (isAdminRole(req.user.role)) {
       const { userId } = req.body;
       if (!userId) return res.status(400).json({ message: 'userId required' });
-
-      await pool.request()
-        .input('userId', sql.NVarChar, userId)
-        .query("UPDATE dbo.chat_messages SET isRead = 1 WHERE senderId = @userId AND senderRole = 'customer'");
-    } else {
-      // Customer marks admin replies as read
-      await pool.request()
-        .input('userId', sql.NVarChar, req.user.userId)
-        .query("UPDATE dbo.chat_messages SET isRead = 1 WHERE targetUserId = @userId AND senderRole = 'admin'");
+      await markSupportConversationReadForAdmin(userId);
+      return res.json({ message: 'Messages marked as read' });
     }
 
+    await markCustomerMessagesRead({ userId: req.user.userId, channel: CHAT_CHANNELS.SUPPORT });
+    return res.json({ message: 'Messages marked as read' });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.get('/ai/messages', authMiddleware, async (req, res, next) => {
+  try {
+    if (!ensureCustomer(req, res)) return;
+    const messages = await fetchConversationMessages({ userId: req.user.userId, channel: CHAT_CHANNELS.AI });
+    return res.json(messages);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.post('/ai/messages', authMiddleware, async (req, res, next) => {
+  try {
+    if (!ensureCustomer(req, res)) return;
+
+    const { message } = req.body;
+    if (!message || !message.trim()) {
+      return res.status(400).json({ message: 'Message is required' });
+    }
+
+    const io = req.app.get('io');
+    const { chatMessage, aiMessage, aiReplyScheduled } = await sendAiChatMessage({
+      io,
+      senderId: req.user.userId,
+      senderEmail: req.user.email,
+      message,
+    });
+
+    return res.status(201).json({
+      id: chatMessage.id,
+      message: 'Message sent',
+      aiMessage,
+      aiReplyScheduled,
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.patch('/ai/messages/read', authMiddleware, async (req, res, next) => {
+  try {
+    if (!ensureCustomer(req, res)) return;
+    await markCustomerMessagesRead({ userId: req.user.userId, channel: CHAT_CHANNELS.AI });
     return res.json({ message: 'Messages marked as read' });
   } catch (error) {
     return next(error);

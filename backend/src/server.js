@@ -21,11 +21,17 @@ const { notFound, errorHandler } = require('./middlewares/errorMiddleware');
 
 const app = express();
 const httpServer = http.createServer(app);
+const FRONTEND_BASE_URL = process.env.FRONTEND_BASE_URL || 'http://localhost:5173';
+const corsOptions = {
+  origin: FRONTEND_BASE_URL,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 204,
+};
 
-// ── Socket.IO ────────────────────────────────────────────────────────────────
 const io = new SocketIOServer(httpServer, {
   cors: {
-    origin: '*',
+    origin: FRONTEND_BASE_URL,
     methods: ['GET', 'POST'],
   },
   connectionStateRecovery: {},
@@ -34,7 +40,8 @@ attachSocketIO(io);
 app.set('io', io);
 
 // ── Express Middleware ───────────────────────────────────────────────────────
-app.use(cors());
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(express.json({ limit: '12mb' }));
 
 // Health check

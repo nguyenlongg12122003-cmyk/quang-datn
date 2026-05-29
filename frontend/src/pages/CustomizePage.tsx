@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { catalogApi, chatApi, formatPrice, normalizeCustomizationOptions, type Product } from '@/lib/api-service';
+import { catalogApi, supportChatApi, formatPrice, normalizeCustomizationOptions, type Product } from '@/lib/api-service';
 import { useCartStore } from '@/store/cart-store';
 import { useAuthStore } from '@/store/auth-store';
 import { toast } from 'sonner';
@@ -87,7 +87,7 @@ export function CustomizePage() {
         `So luong du kien: ${quantity}`,
         `Yeu cau: ${contactNote || 'Khong co'}`,
       ];
-      await chatApi.sendMessage(messageLines.join('\n'));
+      await supportChatApi.sendMessage(messageLines.join('\n'));
       toast.success('Đã gửi yêu cầu báo giá đến bộ phận kinh doanh');
     } catch {
       toast.error('Không gửi được yêu cầu báo giá. Vui lòng thử lại.');

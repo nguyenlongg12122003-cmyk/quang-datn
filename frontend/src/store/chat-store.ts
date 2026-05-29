@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { chatApi, type ChatMessage } from '@/lib/api-service';
+import { supportChatApi, type ChatMessage } from '@/lib/api-service';
 import { useAuthStore } from './auth-store';
 
 interface ChatState {
@@ -31,7 +31,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   fetchMessages: async () => {
     try {
-      const messages = await chatApi.getMessages();
+      const messages = await supportChatApi.getMessages();
       set({ messages });
     } catch {
       // keep empty list silently
@@ -42,6 +42,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const user = useAuthStore.getState().user;
     const optimistic: ChatMessage = {
       id: `msg-${Date.now()}`,
+      channel: 'support',
       senderId: user?.id || 'guest',
       senderName: user?.name || 'Khách',
       senderRole: 'customer',
@@ -52,7 +53,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     set({ messages: [...get().messages, optimistic] });
 
-    chatApi.sendMessage(message).catch(() => {
+    supportChatApi.sendMessage(message).catch(() => {
       // still show locally even if send failed
     });
 
@@ -61,7 +62,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     setTimeout(async () => {
       set({ isTyping: false });
       try {
-        const messages = await chatApi.getMessages();
+        const messages = await supportChatApi.getMessages();
         set({ messages });
       } catch { /* ignore */ }
     }, 2000);

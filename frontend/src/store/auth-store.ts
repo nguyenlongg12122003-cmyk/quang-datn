@@ -1,8 +1,10 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import axios from 'axios';
 import { api, setAuthToken, getAuthToken } from '@/lib/api';
 import { connectSocket, disconnectSocket } from '@/lib/socket';
 import type { User, Address } from '@/lib/api-service';
+import { toast } from 'sonner';
 
 interface AuthState {
   user: User | null;
@@ -21,6 +23,17 @@ interface AuthState {
   setDefaultAddress: (id: string) => void;
 }
 
+function getApiErrorMessage(error: unknown, fallback: string) {
+  if (axios.isAxiosError(error)) {
+    const message = error.response?.data?.message;
+    if (typeof message === 'string' && message.trim()) {
+      return message;
+    }
+  }
+
+  return fallback;
+}
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
@@ -35,7 +48,8 @@ export const useAuthStore = create<AuthState>()(
           set({ user: data.user, isAuthenticated: true, token: data.token });
           connectSocket(data.token);
           return true;
-        } catch {
+        } catch (error) {
+          toast.error(getApiErrorMessage(error, 'Đăng nhập thất bại'));
           return false;
         }
       },
@@ -55,7 +69,8 @@ export const useAuthStore = create<AuthState>()(
           set({ user: data.user, isAuthenticated: true, token: data.token });
           connectSocket(data.token);
           return true;
-        } catch (_error) {
+        } catch (error) {
+          toast.error(getApiErrorMessage(error, 'Đăng ký thất bại'));
           return false;
         }
       },
@@ -81,7 +96,8 @@ export const useAuthStore = create<AuthState>()(
         try {
           await api.post('/users/change-password', { oldPassword, newPassword });
           return true;
-        } catch (_error) {
+        } catch (error) {
+          toast.error(getApiErrorMessage(error, 'Đổi mật khẩu thất bại'));
           return false;
         }
       },
@@ -134,6 +150,21 @@ export const useAuthStore = create<AuthState>()(
         }
       },
     }),
-    { name: 'auth-storage' }
+    {
+      name: 'auth-storage',
+      onRehydrateStorage: () => (state) => {
+        if (!state) return;
+
+        if (state.token) {
+          setAuthToken(state.token);
+          return;
+        }
+
+        setAuthToken(null);
+        if (state.isAuthenticated) {
+          state.logout();
+        }
+      },
+    }
   )
 );

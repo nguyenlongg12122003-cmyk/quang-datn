@@ -161,11 +161,13 @@ IF OBJECT_ID('dbo.chat_messages', 'U') IS NULL
 BEGIN
   CREATE TABLE dbo.chat_messages (
     id NVARCHAR(50) PRIMARY KEY,
+    channel NVARCHAR(20) NOT NULL DEFAULT 'support',
     senderId NVARCHAR(50) NOT NULL,
     senderName NVARCHAR(255) NOT NULL,
     senderRole NVARCHAR(20) NOT NULL,
     targetUserId NVARCHAR(50) NULL,
     message NVARCHAR(MAX) NOT NULL,
+    metadata NVARCHAR(MAX) NULL,
     [timestamp] DATETIME2 NOT NULL,
     isRead BIT NOT NULL DEFAULT 0
   );
@@ -173,6 +175,20 @@ END
 ELSE IF COL_LENGTH('dbo.chat_messages', 'targetUserId') IS NULL
 BEGIN
   ALTER TABLE dbo.chat_messages ADD targetUserId NVARCHAR(50) NULL;
+END;
+
+IF OBJECT_ID('dbo.chat_messages', 'U') IS NOT NULL
+  AND COL_LENGTH('dbo.chat_messages', 'channel') IS NULL
+BEGIN
+  ALTER TABLE dbo.chat_messages
+  ADD channel NVARCHAR(20) NOT NULL
+    CONSTRAINT DF_chat_messages_channel DEFAULT 'support' WITH VALUES;
+END;
+
+IF OBJECT_ID('dbo.chat_messages', 'U') IS NOT NULL
+  AND COL_LENGTH('dbo.chat_messages', 'metadata') IS NULL
+BEGIN
+  ALTER TABLE dbo.chat_messages ADD metadata NVARCHAR(MAX) NULL;
 END;
 
 IF OBJECT_ID('dbo.reviews', 'U') IS NULL

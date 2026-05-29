@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { chatApi, type ChatMessage, type ChatConversation } from '@/lib/api-service';
+import { supportChatApi, type ChatMessage, type ChatConversation } from '@/lib/api-service';
 import { connectSocket, getSocket } from '@/lib/socket';
 import { useAuthStore } from '@/store/auth-store';
 
@@ -48,7 +48,7 @@ export function AdminChat() {
 
   // Load conversations
   const refreshConversations = () => {
-    chatApi.getConversations()
+    supportChatApi.getConversations()
       .then(setConversations)
       .catch(() => {})
       .finally(() => setLoadingConvs(false));
@@ -64,12 +64,12 @@ export function AdminChat() {
   useEffect(() => {
     if (!selectedUserId) return;
     setLoadingMsgs(true);
-    chatApi.getMessages(selectedUserId)
+    supportChatApi.getMessages(selectedUserId)
       .then(msgs => { setMessages(msgs); })
       .catch(() => {})
       .finally(() => setLoadingMsgs(false));
     // Mark as read
-    chatApi.markRead(selectedUserId).catch(() => {});
+    supportChatApi.markRead(selectedUserId).catch(() => {});
     // Update unread count in conversations list
     setConversations(prev => prev.map(c => c.userId === selectedUserId ? { ...c, unreadCount: 0 } : c));
   }, [selectedUserId]);
@@ -80,20 +80,28 @@ export function AdminChat() {
     if (!socket) return;
 
     const handler = (msg: ChatMessage) => {
+      if (msg.channel !== 'support') return;
+      const conversationUserId = msg.senderRole === 'customer' ? msg.senderId : msg.targetUserId;
+      if (!conversationUserId) return;
+
       // If the message is for the currently selected conversation
-      if (selectedUserId && (msg.senderId === selectedUserId || msg.targetUserId === selectedUserId)) {
+      if (selectedUserId && conversationUserId === selectedUserId) {
         setMessages(prev => prev.find(m => m.id === msg.id) ? prev : [...prev, msg]);
         // Mark as read immediately
-        chatApi.markRead(msg.senderId === selectedUserId ? msg.senderId : selectedUserId).catch(() => {});
+        if (msg.senderRole === 'customer') {
+          supportChatApi.markRead(selectedUserId).catch(() => {});
+        }
       } else {
         // Update unread count for the conversation
         setConversations(prev => {
-          const existingIdx = prev.findIndex(c => c.userId === msg.senderId);
+          const existingIdx = prev.findIndex(c => c.userId === conversationUserId);
           if (existingIdx >= 0) {
             const updated = [...prev];
             updated[existingIdx] = {
               ...updated[existingIdx],
-              unreadCount: updated[existingIdx].unreadCount + 1,
+              unreadCount: msg.senderRole === 'customer'
+                ? updated[existingIdx].unreadCount + 1
+                : updated[existingIdx].unreadCount,
               lastMessage: msg.message,
               lastMessageAt: msg.timestamp,
             };
@@ -123,11 +131,11 @@ export function AdminChat() {
 
     const socket = getSocket();
     if (socket?.connected) {
-      socket.emit('send_message', { message: text, targetUserId: selectedUserId });
+      socket.emit('send_message', { channel: 'support', message: text, targetUserId: selectedUserId });
     } else {
       try {
-        await chatApi.sendMessage(text, selectedUserId);
-        const msgs = await chatApi.getMessages(selectedUserId);
+        await supportChatApi.sendMessage(text, selectedUserId);
+        const msgs = await supportChatApi.getMessages(selectedUserId);
         setMessages(msgs);
       } catch {/* ignore */}
     }
