@@ -1,6 +1,6 @@
 const { getPool, sql } = require('./db');
 const jwt = require('jsonwebtoken');
-const { CHAT_CHANNELS, isAdminRole, sendSupportChatMessage } = require('../services/chatService');
+const { CHAT_CHANNELS, isAdminRole, sendSupportChatMessage, validateMessageLength } = require('../services/chatService');
 
 function attachSocketIO(io) {
   io.use((socket, next) => {
@@ -35,6 +35,12 @@ function attachSocketIO(io) {
 
         if (!message || !message.trim()) {
           if (callback) callback({ error: 'Message is required' });
+          return;
+        }
+
+        const lengthError = validateMessageLength(message);
+        if (lengthError) {
+          if (callback) callback({ error: lengthError });
           return;
         }
 

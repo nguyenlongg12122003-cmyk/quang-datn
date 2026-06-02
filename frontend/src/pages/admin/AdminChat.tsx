@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageCircle, Send, Loader2, Search, Circle } from 'lucide-react';
+import { MessageCircle, Send, Loader2, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { supportChatApi, type ChatMessage, type ChatConversation } from '@/lib/api-service';
-import { connectSocket, getSocket } from '@/lib/socket';
+import { connectSocket, getSocket, onSocketReconnect } from '@/lib/socket';
 import { useAuthStore } from '@/store/auth-store';
 
 const quoteTagMap: Record<string, { label: string; className: string }> = {
@@ -84,15 +84,16 @@ export function AdminChat() {
       const conversationUserId = msg.senderRole === 'customer' ? msg.senderId : msg.targetUserId;
       if (!conversationUserId) return;
 
-      // If the message is for the currently selected conversation
       if (selectedUserId && conversationUserId === selectedUserId) {
-        setMessages(prev => prev.find(m => m.id === msg.id) ? prev : [...prev, msg]);
-        // Mark as read immediately
+        setMessages(prev => {
+          const withoutTemp = prev.filter(m => !(m.id.startsWith('temp-') && m.message === msg.message && m.senderRole === msg.senderRole));
+          if (withoutTemp.find(m => m.id === msg.id)) return withoutTemp;
+          return [...withoutTemp, msg];
+        });
         if (msg.senderRole === 'customer') {
           supportChatApi.markRead(selectedUserId).catch(() => {});
         }
       } else {
-        // Update unread count for the conversation
         setConversations(prev => {
           const existingIdx = prev.findIndex(c => c.userId === conversationUserId);
           if (existingIdx >= 0) {
@@ -107,7 +108,6 @@ export function AdminChat() {
             };
             return updated;
           }
-          // New conversation appeared
           refreshConversations();
           return prev;
         });
@@ -115,7 +115,18 @@ export function AdminChat() {
     };
 
     socket.on('new_message', handler);
-    return () => { socket.off('new_message', handler); };
+
+    const unsubReconnect = onSocketReconnect(() => {
+      refreshConversations();
+      if (selectedUserId) {
+        supportChatApi.getMessages(selectedUserId).then(setMessages).catch(() => {});
+      }
+    });
+
+    return () => {
+      socket.off('new_message', handler);
+      unsubReconnect();
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedUserId, token]);
 
@@ -129,15 +140,40 @@ export function AdminChat() {
     const text = input.trim();
     setInput('');
 
+    const tempId = `temp-${Date.now()}`;
+    const optimistic: ChatMessage = {
+      id: tempId,
+      channel: 'support',
+      senderId: user?.id || '',
+      senderName: user?.name || 'Admin',
+      senderRole: 'admin',
+      targetUserId: selectedUserId,
+      message: text,
+      metadata: null,
+      timestamp: new Date().toISOString(),
+      isRead: false,
+    };
+    setMessages((prev) => [...prev, optimistic]);
+
     const socket = getSocket();
     if (socket?.connected) {
-      socket.emit('send_message', { channel: 'support', message: text, targetUserId: selectedUserId });
+      socket.emit('send_message', { channel: 'support', message: text, targetUserId: selectedUserId }, (result?: { ok?: boolean; id?: string; error?: string }) => {
+        if (result?.error) {
+          setMessages((prev) => prev.filter((m) => m.id !== tempId));
+          setInput(text);
+        } else if (result?.id) {
+          setMessages((prev) => prev.map((m) => m.id === tempId ? { ...m, id: result.id! } : m));
+        }
+      });
     } else {
       try {
         await supportChatApi.sendMessage(text, selectedUserId);
         const msgs = await supportChatApi.getMessages(selectedUserId);
         setMessages(msgs);
-      } catch {/* ignore */}
+      } catch {
+        setMessages((prev) => prev.filter((m) => m.id !== tempId));
+        setInput(text);
+      }
     }
   };
 
@@ -229,8 +265,10 @@ export function AdminChat() {
               </Avatar>
               <div>
                 <div className="font-semibold text-sm">{selectedConv?.userName}</div>
-                <div className="flex items-center gap-1 text-xs text-green-500">
-                  <Circle className="h-2 w-2 fill-current" /> Đang hoạt động
+                <div className="text-xs text-muted-foreground">
+                  {selectedConv?.lastMessageAt
+                    ? `Tin nhắn gần nhất: ${timeAgo(selectedConv.lastMessageAt)} trước`
+                    : 'Khách hàng'}
                 </div>
               </div>
             </div>

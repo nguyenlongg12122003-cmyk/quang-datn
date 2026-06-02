@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { getPool, sql } = require('../libs/db');
 const { authMiddleware } = require('../middlewares/authMiddleware');
+const { handleEvent, EVENT_TYPES } = require('../services/voucherDistributionService');
 
 const router = express.Router();
 
@@ -113,6 +114,13 @@ router.post('/register', async (req, res, next) => {
 			addresses: [],
 			createdAt: new Date().toISOString(),
 		};
+
+		// Auto-distribute welcome voucher (non-blocking)
+		handleEvent({
+			type: EVENT_TYPES.USER_REGISTERED,
+			userId: id,
+			metadata: { email, name },
+		}).catch(err => console.error('[Auth] Failed to distribute welcome voucher:', err));
 
 		const token = signToken(createdUser);
 		return res.status(201).json({ token, user: createdUser });

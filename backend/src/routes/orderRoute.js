@@ -4,6 +4,7 @@ const { authMiddleware, adminMiddleware } = require('../middlewares/authMiddlewa
 const { safeJsonParse } = require('../utils/mapRows');
 const { VNPay, ignoreLogger } = require('vnpay');
 const { PayOS } = require('@payos/node');
+const { getUserOrderCount, checkOrderMilestone } = require('../services/voucherDistributionService');
 
 const router = express.Router();
 
@@ -795,6 +796,20 @@ router.patch('/:id/status', authMiddleware, adminMiddleware, async (req, res, ne
       .input('status', sql.NVarChar, status)
       .input('note', sql.NVarChar, note || null)
       .query("INSERT INTO dbo.order_timeline (orderId, status, date, note) VALUES (@orderId, @status, SYSUTCDATETIME(), @note)");
+
+    // Auto-distribute milestone vouchers when order is delivered (non-blocking)
+    if (status === 'delivered') {
+      const userIdResult = await pool.request()
+        .input('id', sql.NVarChar, req.params.id)
+        .query('SELECT userId FROM dbo.orders WHERE id = @id');
+
+      const userId = userIdResult.recordset[0]?.userId;
+      if (userId) {
+        getUserOrderCount(pool, userId)
+          .then(orderCount => checkOrderMilestone(userId, orderCount))
+          .catch(err => console.error('[Order] Failed to check milestone:', err));
+      }
+    }
 
     return res.json({ message: 'Order status updated', paymentStatus: nextPaymentStatus });
   } catch (error) {

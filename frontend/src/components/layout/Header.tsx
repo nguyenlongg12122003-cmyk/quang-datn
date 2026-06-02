@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { ShoppingCart, Heart, User, Search, Menu, ChevronDown, LogOut, Package, Settings, Building2, Sparkles } from 'lucide-react';
+import { ShoppingCart, Heart, User, Search, Menu, ChevronDown, LogOut, Package, Settings, Building2, Sparkles, Ticket } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -79,6 +79,7 @@ export function Header() {
                   ))}
                 </nav>
                 <div className="border-t mt-4 pt-4 space-y-2">
+                  <Link to="/vouchers" className="flex items-center gap-2 p-2 hover:bg-accent rounded-md text-foreground"><Ticket className="h-4 w-4" /> Mã giảm giá</Link>
                   <Link to="/wholesale" className="flex items-center gap-2 p-2 hover:bg-accent rounded-md text-foreground"><Building2 className="h-4 w-4" /> Mua sỉ</Link>
                   <Link to="/customize" className="flex items-center gap-2 p-2 hover:bg-accent rounded-md text-foreground"><Sparkles className="h-4 w-4" /> Tùy chỉnh sản phẩm</Link>
                 </div>
@@ -120,6 +121,12 @@ export function Header() {
           <Link to="/wholesale" className="hidden xl:block">
             <Button variant="outline" className="gap-2 border-amber-300 text-amber-700 hover:bg-amber-50">
               <Building2 className="h-4 w-4" /> Mua sỉ
+            </Button>
+          </Link>
+
+          <Link to="/vouchers" className="hidden xl:block">
+            <Button variant="outline" className="gap-2 border-green-300 text-green-700 hover:bg-green-50">
+              <Ticket className="h-4 w-4" /> Mã giảm giá
             </Button>
           </Link>
 
@@ -198,6 +205,11 @@ export function Header() {
                   <DropdownMenuItem asChild>
                     <Link to="/orders" className="flex items-center gap-2">
                       <Package className="h-4 w-4" /> Đơn hàng
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/my-vouchers" className="flex items-center gap-2">
+                      <Ticket className="h-4 w-4" /> Voucher của tôi
                     </Link>
                   </DropdownMenuItem>
                   {user.role === 'admin' && (

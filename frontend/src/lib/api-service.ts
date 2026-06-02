@@ -200,6 +200,18 @@ export const userApi = {
 
 // ─── Vouchers ────────────────────────────────────────────────────────────────
 
+export interface UserVoucher {
+  id: string;
+  userId: string;
+  voucherId: string;
+  voucher: Voucher;
+  claimedAt: string;
+  expiresAt: string;
+  isUsed: boolean;
+  usedAt?: string;
+  orderId?: string;
+}
+
 export const voucherApi = {
   getAll: () => api.get<Voucher[]>('/vouchers').then(r => r.data),
   validate: (code: string, subtotal: number) =>
@@ -207,6 +219,9 @@ export const voucherApi = {
   create: (data: Partial<Voucher>) => api.post<{id:string}>('/vouchers', data).then(r => r.data),
   update: (id: string, data: Partial<Voucher>) => api.put(`/vouchers/${id}`, data),
   delete: (id: string) => api.delete(`/vouchers/${id}`),
+  // User vouchers
+  getMyVouchers: () => api.get<UserVoucher[]>('/my-vouchers').then(r => r.data),
+  claimVoucher: (voucherId: string) => api.post<{id:string}>(`/vouchers/${voucherId}/claim`).then(r => r.data),
 };
 
 // ─── Dashboard ───────────────────────────────────────────────────────────────
@@ -222,6 +237,8 @@ export const dashboardApi = {
 export const aiChatApi = {
   getMessages: () =>
     api.get<ChatMessage[]>('/chat/ai/messages').then(r => r.data),
+  getNewMessages: (since: string) =>
+    api.get<ChatMessage[]>('/chat/ai/messages', { params: { since } }).then(r => r.data),
   sendMessage: (message: string) =>
     api.post<ChatSendMessageResponse>('/chat/ai/messages', { message }).then(r => r.data),
   markRead: () => api.patch('/chat/ai/messages/read'),

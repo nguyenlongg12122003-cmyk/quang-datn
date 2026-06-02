@@ -1,36 +1,32 @@
-import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { Trash2, Minus, Plus, ShoppingCart, Tag, ArrowRight, Sparkles, Ticket } from 'lucide-react';
+import { Trash2, Minus, Plus, ShoppingCart, ArrowRight, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useCartStore } from '@/store/cart-store';
-import { formatPrice } from '@/lib/api-service';
+import { formatPrice, type Voucher } from '@/lib/api-service';
 import { toast } from 'sonner';
+import { VoucherInput } from '@/components/voucher/VoucherInput';
 
 export function CartPage() {
   const {
     items, voucherCode, voucherDiscount,
     updateQuantity, removeItem, clearCart,
-    applyVoucher, removeVoucher,
+    removeVoucher,
     getSubtotal, getShippingFee, getTotal
   } = useCartStore();
-  const [couponInput, setCouponInput] = useState('');
   const navigate = useNavigate();
 
   const cartProducts = items.filter(item => item.product);
 
-  const handleApplyVoucher = async () => {
-    if (!couponInput.trim()) return;
-    const success = await applyVoucher(couponInput);
-    if (success) {
-      toast.success('Áp dụng mã giảm giá thành công!');
-      setCouponInput('');
-    } else {
-      toast.error('Mã giảm giá không hợp lệ');
-    }
+  const handleApplyVoucher = (voucher: Voucher, discount: number) => {
+    useCartStore.setState({ voucherCode: voucher.code, voucherDiscount: discount });
+    toast.success('Áp dụng mã giảm giá thành công!');
+  };
+
+  const handleRemoveVoucher = () => {
+    removeVoucher();
+    toast.info('Đã xóa mã giảm giá');
   };
 
   if (items.length === 0) {
@@ -132,27 +128,12 @@ export function CartPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Voucher */}
-              <div>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Nhập mã giảm giá"
-                    value={couponInput}
-                    onChange={(e) => setCouponInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && void handleApplyVoucher()}
-                  />
-                  <Button variant="outline" onClick={() => void handleApplyVoucher()}>
-                    <Tag className="h-4 w-4" />
-                  </Button>
-                </div>
-                {voucherCode && (
-                  <div className="flex items-center justify-between mt-2 text-sm">
-                    <Badge variant="secondary" className="gap-1">
-                      <Ticket className="h-3 w-3" /> {voucherCode}
-                    </Badge>
-                    <button onClick={removeVoucher} className="text-red-500 text-xs hover:underline">Xóa</button>
-                  </div>
-                )}
-              </div>
+              <VoucherInput
+                subtotal={getSubtotal()}
+                onApply={handleApplyVoucher}
+                onRemove={handleRemoveVoucher}
+                appliedVoucher={voucherCode ? { code: voucherCode, discount: voucherDiscount } : null}
+              />
 
               <Separator />
 

@@ -15,6 +15,15 @@ function getAiSenderName() {
   return process.env.AI_CHAT_ASSISTANT_NAME || 'AI tư vấn sản phẩm';
 }
 
+const MAX_MESSAGE_LENGTH = 2000;
+
+function validateMessageLength(message) {
+  if (String(message || '').length > MAX_MESSAGE_LENGTH) {
+    return `Tin nhắn không được vượt quá ${MAX_MESSAGE_LENGTH} ký tự`;
+  }
+  return null;
+}
+
 function createChatMessageId() {
   return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
@@ -29,8 +38,31 @@ async function resolveSenderName({ userId, email }) {
 }
 
 async function persistChatMessage({ channel, senderId, senderName, senderRole, targetUserId = null, message, metadata = null }) {
+  const id = createChatMessageId();
+  const pool = await getPool();
+  await pool.request()
+    .input('id', sql.NVarChar, id)
+    .input('channel', sql.NVarChar, channel)
+    .input('senderId', sql.NVarChar, senderId)
+    .input('senderName', sql.NVarChar, senderName)
+    .input('senderRole', sql.NVarChar, senderRole)
+    .input('targetUserId', sql.NVarChar, targetUserId)
+    .input('message', sql.NVarChar(sql.MAX), String(message || '').trim())
+    .input('metadata', sql.NVarChar(sql.MAX), metadata ? JSON.stringify(metadata) : null)
+    .query(`
+      INSERT INTO dbo.chat_messages (id, channel, senderId, senderName, senderRole, targetUserId, message, metadata, [timestamp], isRead)
+      OUTPUT INSERTED.[timestamp]
+      VALUES (@id, @channel, @senderId, @senderName, @senderRole, @targetUserId, @message, @metadata, SYSUTCDATETIME(), 0)
+    `);
+
+  const tsResult = await pool.request()
+    .input('id', sql.NVarChar, id)
+    .query('SELECT [timestamp] FROM dbo.chat_messages WHERE id = @id');
+
+  const dbTimestamp = tsResult.recordset[0]?.timestamp;
+
   const payload = {
-    id: createChatMessageId(),
+    id,
     channel,
     senderId,
     senderName,
@@ -38,24 +70,9 @@ async function persistChatMessage({ channel, senderId, senderName, senderRole, t
     targetUserId,
     message: String(message || '').trim(),
     metadata,
-    timestamp: new Date().toISOString(),
+    timestamp: dbTimestamp ? new Date(dbTimestamp).toISOString() : new Date().toISOString(),
     isRead: false,
   };
-
-  const pool = await getPool();
-  await pool.request()
-    .input('id', sql.NVarChar, payload.id)
-    .input('channel', sql.NVarChar, payload.channel)
-    .input('senderId', sql.NVarChar, payload.senderId)
-    .input('senderName', sql.NVarChar, payload.senderName)
-    .input('senderRole', sql.NVarChar, payload.senderRole)
-    .input('targetUserId', sql.NVarChar, payload.targetUserId)
-    .input('message', sql.NVarChar(sql.MAX), payload.message)
-    .input('metadata', sql.NVarChar(sql.MAX), payload.metadata ? JSON.stringify(payload.metadata) : null)
-    .query(`
-      INSERT INTO dbo.chat_messages (id, channel, senderId, senderName, senderRole, targetUserId, message, metadata, [timestamp], isRead)
-      VALUES (@id, @channel, @senderId, @senderName, @senderRole, @targetUserId, @message, @metadata, SYSUTCDATETIME(), 0)
-    `);
 
   return payload;
 }
@@ -65,10 +82,8 @@ function emitChatMessage(io, message) {
 
   if (message.channel === CHAT_CHANNELS.AI) {
     if (message.senderRole === 'customer') {
-      io.to(`user:${message.senderId}`).emit('new_message', message);
       return;
     }
-
     if (message.targetUserId) {
       io.to(`user:${message.targetUserId}`).emit('new_message', message);
     }
@@ -113,6 +128,20 @@ async function sendAiAdvisorReply({ io, customerId, customerName, customerMessag
     return aiMessage;
   } catch (error) {
     console.error('[chat] AI advisor reply failed:', error.message);
+    try {
+      const fallbackMessage = await persistChatMessage({
+        channel: CHAT_CHANNELS.AI,
+        senderId: AI_SENDER_ID,
+        senderName: getAiSenderName(),
+        senderRole: 'admin',
+        targetUserId: customerId,
+        message: 'Xin lỗi bạn, mình đang gặp trục trặc kỹ thuật và chưa thể xử lý yêu cầu lúc này. Bạn vui lòng thử lại sau hoặc liên hệ nhân viên hỗ trợ nhé!',
+        metadata: { isErrorFallback: true },
+      });
+      emitChatMessage(io, fallbackMessage);
+    } catch (innerError) {
+      console.error('[chat] AI fallback message also failed:', innerError.message);
+    }
     return null;
   }
 }
@@ -173,8 +202,10 @@ async function sendAiChatMessage({
 module.exports = {
   AI_SENDER_ID,
   CHAT_CHANNELS,
+  MAX_MESSAGE_LENGTH,
   getAiSenderName,
   isAdminRole,
+  validateMessageLength,
   sendAiChatMessage,
   sendSupportChatMessage,
 };

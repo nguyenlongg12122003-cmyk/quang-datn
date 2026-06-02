@@ -5,6 +5,7 @@ const { safeJsonParse } = require('../utils/mapRows');
 const {
   CHAT_CHANNELS,
   isAdminRole,
+  validateMessageLength,
   sendAiChatMessage,
   sendSupportChatMessage,
 } = require('../services/chatService');
@@ -27,20 +28,33 @@ function ensureCustomer(req, res) {
   return true;
 }
 
-async function fetchConversationMessages({ userId, channel }) {
+async function fetchConversationMessages({ userId, channel, limit = 100, before = null, since = null }) {
   const pool = await getPool();
-  const result = await pool.request()
+  const request = pool.request()
     .input('userId', sql.NVarChar, userId)
     .input('channel', sql.NVarChar, channel)
-    .query(`
-      SELECT *
-      FROM dbo.chat_messages
-      WHERE channel = @channel
-        AND (senderId = @userId OR targetUserId = @userId)
-      ORDER BY [timestamp] ASC
-    `);
+    .input('limit', sql.Int, limit);
 
-  return normalizeMessages(result.recordset);
+  let timeFilter = '';
+  if (before) {
+    request.input('before', sql.NVarChar, before);
+    timeFilter = 'AND [timestamp] < @before';
+  }
+  if (since) {
+    request.input('since', sql.NVarChar, since);
+    timeFilter += ' AND [timestamp] > @since';
+  }
+
+  const result = await request.query(`
+    SELECT TOP (@limit) *
+    FROM dbo.chat_messages
+    WHERE channel = @channel
+      AND (senderId = @userId OR targetUserId = @userId)
+      ${timeFilter}
+    ORDER BY [timestamp] DESC
+  `);
+
+  return normalizeMessages(result.recordset.reverse());
 }
 
 async function markCustomerMessagesRead({ userId, channel }) {
@@ -125,7 +139,12 @@ router.get('/support/messages', authMiddleware, async (req, res, next) => {
       return res.status(400).json({ message: 'userId query param required for admin' });
     }
 
-    const messages = await fetchConversationMessages({ userId, channel: CHAT_CHANNELS.SUPPORT });
+    const messages = await fetchConversationMessages({
+      userId,
+      channel: CHAT_CHANNELS.SUPPORT,
+      limit: req.query.limit ? parseInt(req.query.limit, 10) : 100,
+      before: req.query.before || null,
+    });
     return res.json(messages);
   } catch (error) {
     return next(error);
@@ -137,6 +156,11 @@ router.post('/support/messages', authMiddleware, async (req, res, next) => {
     const { message, targetUserId } = req.body;
     if (!message || !message.trim()) {
       return res.status(400).json({ message: 'Message is required' });
+    }
+
+    const lengthError = validateMessageLength(message);
+    if (lengthError) {
+      return res.status(400).json({ message: lengthError });
     }
 
     const isAdmin = isAdminRole(req.user.role);
@@ -182,7 +206,13 @@ router.patch('/support/messages/read', authMiddleware, async (req, res, next) =>
 router.get('/ai/messages', authMiddleware, async (req, res, next) => {
   try {
     if (!ensureCustomer(req, res)) return;
-    const messages = await fetchConversationMessages({ userId: req.user.userId, channel: CHAT_CHANNELS.AI });
+    const messages = await fetchConversationMessages({
+      userId: req.user.userId,
+      channel: CHAT_CHANNELS.AI,
+      limit: req.query.limit ? parseInt(req.query.limit, 10) : 100,
+      before: req.query.before || null,
+      since: req.query.since || null,
+    });
     return res.json(messages);
   } catch (error) {
     return next(error);
@@ -196,6 +226,11 @@ router.post('/ai/messages', authMiddleware, async (req, res, next) => {
     const { message } = req.body;
     if (!message || !message.trim()) {
       return res.status(400).json({ message: 'Message is required' });
+    }
+
+    const lengthError = validateMessageLength(message);
+    if (lengthError) {
+      return res.status(400).json({ message: lengthError });
     }
 
     const io = req.app.get('io');

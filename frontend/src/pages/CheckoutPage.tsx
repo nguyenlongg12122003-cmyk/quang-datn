@@ -11,19 +11,30 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useCartStore } from '@/store/cart-store';
 import { useAuthStore } from '@/store/auth-store';
-import { formatPrice } from '@/lib/api-service';
+import { formatPrice, type Voucher } from '@/lib/api-service';
 import type { PaymentMethod, ShippingMethod } from '@/lib/api-service';
 import { orderApi } from '@/lib/api-service';
 import { toast } from 'sonner';
+import { VoucherInput } from '@/components/voucher/VoucherInput';
 
 export function CheckoutPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const {
     items, paymentMethod, shippingMethod, voucherCode, voucherDiscount, note,
-    setPaymentMethod, setShippingMethod, setNote,
+    setPaymentMethod, setShippingMethod, setNote, removeVoucher,
     getSubtotal, getShippingFee, getTotal, clearCart
   } = useCartStore();
+
+  const handleApplyVoucher = (voucher: Voucher, discount: number) => {
+    useCartStore.setState({ voucherCode: voucher.code, voucherDiscount: discount });
+    toast.success('Áp dụng mã giảm giá thành công!');
+  };
+
+  const handleRemoveVoucher = () => {
+    removeVoucher();
+    toast.info('Đã xóa mã giảm giá');
+  };
 
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [orderId, setOrderId] = useState('');
@@ -316,6 +327,16 @@ export function CheckoutPage() {
                   );
                 })}
               </div>
+
+              <Separator />
+
+              {/* Voucher Input */}
+              <VoucherInput
+                subtotal={getSubtotal()}
+                onApply={handleApplyVoucher}
+                onRemove={handleRemoveVoucher}
+                appliedVoucher={voucherCode ? { code: voucherCode, discount: voucherDiscount } : null}
+              />
 
               <Separator />
 

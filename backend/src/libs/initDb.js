@@ -228,6 +228,11 @@ async function initDatabase() {
   const pool = await getPool();
   await pool.request().query(createTablesSql);
 
+  // Auto-run migrations
+  console.log('[initDb] Checking for pending migrations...');
+  const { runMigrations } = require('./migrationRunner');
+  await runMigrations();
+
   const countResult = await pool.request().query('SELECT COUNT(1) AS total FROM dbo.products');
   const total = countResult.recordset[0]?.total || 0;
   if (total === 0) {
