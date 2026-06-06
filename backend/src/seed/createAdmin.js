@@ -11,9 +11,9 @@ async function main() {
   await initDatabase();
   const pool = await getPool();
 
-  const email = 'phanquang@gmail.com';
+  const email = 'quang@admin.com';
   const password = '123456';
-  const name = 'Phan Quang';
+  const name = 'Quang Admin';
 
   // Check existing
   const existing = await pool.request()
