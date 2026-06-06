@@ -15,6 +15,7 @@ import {
 import { PriceTag } from '@/components/common/PriceTag'
 import { RatingStars } from '@/components/common/RatingStars'
 import { QuantityStepper } from '@/components/common/QuantityStepper'
+import { ImageUploader } from '@/components/common/ImageUploader'
 import { formatCurrency, formatNumber } from '@/lib/format'
 import {
   getUnitPriceForQty,
@@ -33,8 +34,6 @@ import type { OrderItemCustomization, Product } from '@/types'
 interface PurchasePanelProps {
   product: Product
 }
-
-const MAX_IMAGE_BYTES = 2 * 1024 * 1024
 
 export function PurchasePanel({ product }: PurchasePanelProps) {
   const addItem = useCartStore((s) => s.addItem)
@@ -68,25 +67,10 @@ export function PurchasePanel({ product }: PurchasePanelProps) {
     }
   }
 
-  const handleImageUpload = async (file: File | undefined) => {
-    if (!file) return
-    if (file.size > MAX_IMAGE_BYTES) {
-      toast.error('Ảnh tối đa 2MB')
-      return
-    }
-    const reader = new FileReader()
-    reader.onload = () => setCustomText(String(reader.result))
-    reader.readAsDataURL(file)
-  }
-
   const validateCustomization = (): boolean => {
     if (!product.isCustomizable || !selectedOption) return true
     if (!customText) {
       toast.error('Vui lòng nhập nội dung tùy chỉnh')
-      return false
-    }
-    if (selectedOption.inputType === 'image' && !customText.startsWith('data:image/')) {
-      toast.error('Vui lòng tải lên ảnh hợp lệ')
       return false
     }
     return true
@@ -177,7 +161,13 @@ export function PurchasePanel({ product }: PurchasePanelProps) {
       {product.isCustomizable && options.length > 0 ? (
         <div className="space-y-2">
           <Label>Tùy chỉnh in ấn</Label>
-          <Select value={optionLabel} onValueChange={(v) => { setOptionLabel(v); setCustomText('') }}>
+          <Select
+            value={optionLabel}
+            onValueChange={(v) => {
+              setOptionLabel(v)
+              setCustomText('')
+            }}
+          >
             <SelectTrigger>
               <SelectValue placeholder="Chọn kiểu tùy chỉnh (tùy chọn)" />
             </SelectTrigger>
@@ -190,23 +180,27 @@ export function PurchasePanel({ product }: PurchasePanelProps) {
               ))}
             </SelectContent>
           </Select>
+
           {selectedOption?.inputType === 'text' ? (
-            <Input
-              placeholder={selectedOption.placeholder ?? 'Nhập nội dung in'}
-              value={customText}
-              onChange={(e) => setCustomText(e.target.value)}
-            />
-          ) : null}
-          {selectedOption?.inputType === 'image' ? (
-            <div className="space-y-2">
+            <div className="space-y-1">
               <Input
-                type="file"
-                accept="image/*"
-                onChange={(e) => handleImageUpload(e.target.files?.[0])}
+                placeholder={selectedOption.placeholder ?? 'Nhập nội dung in'}
+                value={customText}
+                onChange={(e) => setCustomText(e.target.value)}
               />
-              {customText.startsWith('data:image/') ? (
-                <img src={customText} alt="preview" className="h-20 rounded-md border border-border" />
+              {selectedOption.helpText ? (
+                <p className="text-xs text-muted-foreground">{selectedOption.helpText}</p>
               ) : null}
+            </div>
+          ) : null}
+
+          {selectedOption?.inputType === 'image' ? (
+            <div className="space-y-1">
+              <ImageUploader
+                value={customText}
+                onChange={setCustomText}
+                previewClassName="h-24 w-24 rounded-md"
+              />
               {selectedOption.helpText ? (
                 <p className="text-xs text-muted-foreground">{selectedOption.helpText}</p>
               ) : null}

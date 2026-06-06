@@ -481,8 +481,12 @@ router.post('/', authMiddleware, async (req, res, next) => {
           return res.status(400).json({ message: `Vui lòng nhập nội dung tùy chỉnh cho sản phẩm: ${product.name}` });
         }
 
-        if (selectedOption?.inputType === 'image' && !text.startsWith('data:image/')) {
-          return res.status(400).json({ message: `Ảnh tùy chỉnh không hợp lệ cho sản phẩm: ${product.name}` });
+        if (selectedOption?.inputType === 'image') {
+          const isDataUrl = text.startsWith('data:image/');
+          const isUrl = text.startsWith('http://') || text.startsWith('https://');
+          if (!isDataUrl && !isUrl) {
+            return res.status(400).json({ message: `Ảnh tùy chỉnh không hợp lệ cho sản phẩm: ${product.name}` });
+          }
         }
 
         normalizedCustomization = {

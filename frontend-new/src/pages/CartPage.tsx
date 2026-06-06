@@ -78,15 +78,26 @@ export function CartPage() {
                     </Button>
                   </div>
                   {item.customization ? (
-                    <p className="text-xs text-muted-foreground">
-                      {item.customization.type}
-                      {item.customization.inputType === 'text' && item.customization.text
-                        ? `: ${item.customization.text}`
-                        : ''}
-                      {item.customization.extraPrice
-                        ? ` (+${formatCurrency(item.customization.extraPrice)})`
-                        : ''}
-                    </p>
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="rounded bg-secondary px-1.5 py-0.5 font-medium text-foreground/80">
+                        {item.customization.type}
+                      </span>
+                      {item.customization.extraPrice ? (
+                        <span className="text-muted-foreground">(+{formatCurrency(item.customization.extraPrice)})</span>
+                      ) : null}
+
+                      {item.customization.inputType === 'text' && item.customization.text ? (
+                        <span className="line-clamp-1 text-muted-foreground">“{item.customization.text}”</span>
+                      ) : null}
+
+                      {item.customization.inputType === 'image' && item.customization.text ? (
+                        <img
+                          src={item.customization.text}
+                          alt="Tùy chỉnh"
+                          className="h-9 w-9 rounded border border-border object-cover"
+                        />
+                      ) : null}
+                    </div>
                   ) : null}
                   <div className="mt-auto flex items-center justify-between">
                     <QuantityStepper

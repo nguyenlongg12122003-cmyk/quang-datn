@@ -31,7 +31,22 @@ interface CartState {
 
 function buildLineId(productId: string, customization?: OrderItemCustomization | null): string {
   if (!customization) return productId
-  return `${productId}::${customization.type}::${customization.text}`
+
+  const base = `${productId}::${customization.type}`
+
+  // For image customizations, never put the full (often huge) base64 into the key.
+  // Use a short fingerprint so identical uploads can still merge, but key stays small.
+  if (customization.inputType === 'image') {
+    const data = customization.text || ''
+    // Take a tiny stable slice + length as fingerprint (keeps key < ~80 chars)
+    const fp = data.length > 30 ? `${data.slice(0, 22)}L${data.length}` : data
+    const safeFp = fp.replace(/[^a-zA-Z0-9]/g, '')
+    return `${base}::img::${safeFp}`
+  }
+
+  // Text customizations are short — safe to include a bounded prefix
+  const text = (customization.text || '').slice(0, 64).replace(/::/g, ':')
+  return `${base}::${text}`
 }
 
 export const useCartStore = create<CartState>()(

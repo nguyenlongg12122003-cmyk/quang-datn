@@ -7,8 +7,10 @@ import {
 } from '@/components/ui/dialog'
 import { Separator } from '@/components/ui/separator'
 import { OrderStatusBadge } from '@/components/common/OrderStatusBadge'
+import { Button } from '@/components/ui/button'
 import { formatCurrency, formatDateTime } from '@/lib/format'
 import { ORDER_STATUS_LABELS, PAYMENT_METHOD_LABELS, PAYMENT_STATUS_LABELS } from '@/lib/constants'
+import { Download } from 'lucide-react'
 import type { Order } from '@/types'
 
 interface OrderDetailDialogProps {
@@ -17,6 +19,46 @@ interface OrderDetailDialogProps {
 }
 
 export function OrderDetailDialog({ order, onOpenChange }: OrderDetailDialogProps) {
+  const handleDownloadCustomizationImage = (imageSrc: string, item: { productName: string }) => {
+    if (!order || !imageSrc) return;
+
+    const isDataUrl = imageSrc.startsWith('data:image/');
+
+    // Create a clean filename base
+    const safeProduct = item.productName
+      .replace(/[^a-zA-Z0-9\s-]/g, '')
+      .trim()
+      .replace(/\s+/g, '-')
+      .slice(0, 50);
+    const filenameBase = `${order.id}-${safeProduct}-custom`;
+
+    if (isDataUrl) {
+      // Old base64 flow
+      const link = document.createElement('a');
+      link.href = imageSrc;
+
+      let ext = 'png';
+      if (imageSrc.startsWith('data:image/jpeg') || imageSrc.startsWith('data:image/jpg')) ext = 'jpg';
+      else if (imageSrc.startsWith('data:image/webp')) ext = 'webp';
+      else if (imageSrc.startsWith('data:image/gif')) ext = 'gif';
+
+      link.download = `${filenameBase}.${ext}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      return;
+    }
+
+    // Cloudinary / regular image URL - open in new tab or trigger download via fetch + blob for better control
+    const link = document.createElement('a');
+    link.href = imageSrc;
+    link.download = filenameBase; // browsers may ignore this for cross-origin, fallback to opening
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <Dialog open={Boolean(order)} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
@@ -48,14 +90,57 @@ export function OrderDetailDialog({ order, onOpenChange }: OrderDetailDialogProp
                     {item.productImage ? (
                       <img src={item.productImage} alt={item.productName} className="size-12 rounded object-cover" />
                     ) : null}
-                    <div className="flex-1">
+                    <div className="min-w-0 flex-1">
                       <p className="line-clamp-1">{item.productName}</p>
                       <p className="text-muted-foreground">
                         {formatCurrency(item.price)} × {item.quantity}
-                        {item.customization ? ` · ${item.customization.type}` : ''}
                       </p>
+
+                      {item.customization ? (
+                        <div className="mt-1 flex items-center gap-2 text-xs">
+                          <span className="inline-block rounded bg-secondary px-1.5 py-px font-medium text-foreground/80">
+                            {item.customization.type}
+                          </span>
+                          {item.customization.extraPrice ? (
+                            <span className="text-muted-foreground">+{formatCurrency(item.customization.extraPrice)}</span>
+                          ) : null}
+
+                          {item.customization.inputType === 'text' && item.customization.text ? (
+                            <span className="line-clamp-1 text-muted-foreground">“{item.customization.text}”</span>
+                          ) : null}
+
+                          {item.customization.inputType === 'image' && item.customization.text ? (
+                            <div className="flex items-center gap-2">
+                              <a
+                                href={item.customization.text}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-block"
+                                title="Nhấn để xem ảnh đầy đủ"
+                              >
+                                <img
+                                  src={item.customization.text}
+                                  alt="Tùy chỉnh in"
+                                  className="h-9 w-9 rounded border border-border object-cover hover:ring-1 hover:ring-primary"
+                                />
+                              </a>
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                className="h-7 px-2 text-xs"
+                                onClick={() => handleDownloadCustomizationImage(item.customization!.text!, item)}
+                                title="Tải ảnh về để in ấn"
+                              >
+                                <Download className="mr-1 size-3" />
+                                Tải ảnh
+                              </Button>
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : null}
                     </div>
-                    <span className="font-medium">{formatCurrency(item.price * item.quantity)}</span>
+                    <span className="shrink-0 font-medium">{formatCurrency(item.price * item.quantity)}</span>
                   </div>
                 ))}
               </section>
