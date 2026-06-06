@@ -10,7 +10,7 @@ import { EmptyState } from '@/components/common/EmptyState'
 import { OrderStatusBadge } from '@/components/common/OrderStatusBadge'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { OrderDetailDialog } from '@/features/orders/OrderDetailDialog'
-import { useCancelOrder, useMyOrders, useRequestReturn } from '@/features/orders/api'
+import { useCancelOrder, useMyOrders } from '@/features/orders/api'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { getErrorMessage } from '@/lib/api/axios'
 import type { Order } from '@/types'
@@ -18,7 +18,6 @@ import type { Order } from '@/types'
 export function OrdersPage() {
   const { data: orders = [], isLoading } = useMyOrders()
   const cancelOrder = useCancelOrder()
-  const requestReturn = useRequestReturn()
   const [detail, setDetail] = useState<Order | null>(null)
   const [cancelId, setCancelId] = useState<string | null>(null)
   const [searchParams] = useSearchParams()
@@ -29,18 +28,6 @@ export function OrdersPage() {
     if (payment === 'vnpay_success') toast.success('Thanh toán VNPay thành công!')
     else if (payment === 'vnpay_failed') toast.error('Thanh toán VNPay thất bại.')
   }, [searchParams])
-
-  const handleReturn = (order: Order) => {
-    const reason = window.prompt('Lý do hoàn trả:')
-    if (!reason?.trim()) return
-    requestReturn.mutate(
-      { id: order.id, reason: reason.trim() },
-      {
-        onSuccess: () => toast.success('Đã gửi yêu cầu hoàn trả'),
-        onError: (error) => toast.error(getErrorMessage(error)),
-      },
-    )
-  }
 
   if (isLoading) {
     return (
@@ -99,11 +86,6 @@ export function OrdersPage() {
                     onClick={() => setCancelId(order.id)}
                   >
                     Hủy đơn
-                  </Button>
-                ) : null}
-                {order.status === 'delivered' && !order.returnRequest ? (
-                  <Button variant="outline" size="sm" onClick={() => handleReturn(order)}>
-                    Yêu cầu hoàn trả
                   </Button>
                 ) : null}
               </div>
