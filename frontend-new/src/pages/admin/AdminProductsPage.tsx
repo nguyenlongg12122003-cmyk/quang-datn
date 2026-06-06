@@ -26,8 +26,9 @@ import type { Product } from '@/types'
 const PAGE_SIZE = 12
 
 export function AdminProductsPage() {
-  // Admin sees all statuses (no status filter).
-  const { data: products = [], isLoading } = useProducts({})
+  // Admin sees all statuses (no status filter). Ask for a large page to approximate "all".
+  const { data, isLoading } = useProducts({ limit: 200 })
+  const products = data?.items ?? []
   const deleteProduct = useDeleteProduct()
   const [search, setSearch] = useState('')
   const debounced = useDebounce(search, 300)

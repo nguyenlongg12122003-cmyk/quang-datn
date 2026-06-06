@@ -18,7 +18,13 @@ export interface ProductQuery {
   status?: string
   minPrice?: number
   maxPrice?: number
+  page?: number
   limit?: number
+}
+
+export interface ProductListResponse {
+  items: Product[]
+  total: number
 }
 
 export const catalogApi = {
@@ -44,7 +50,7 @@ export const catalogApi = {
   // Products
   listProducts: (query: ProductQuery = {}) =>
     api
-      .get<Product[]>('/catalog/products', { params: query })
+      .get<ProductListResponse>('/catalog/products', { params: query })
       .then((r) => r.data),
   getProduct: (idOrSlug: string) =>
     api.get<Product>(`/catalog/products/${idOrSlug}`).then((r) => r.data),

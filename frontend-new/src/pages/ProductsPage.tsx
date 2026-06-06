@@ -30,7 +30,8 @@ const SORT_OPTIONS: Array<{ value: NonNullable<ProductQuery['sortBy']>; label: s
 
 export function ProductsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const [page, setPage] = useState(1)
+  const urlPage = Number(searchParams.get('page') || '1')
+  const [page, setPage] = useState(() => (urlPage > 0 ? urlPage : 1))
 
   const q = searchParams.get('q') ?? undefined
   const sortBy = (searchParams.get('sortBy') as ProductQuery['sortBy']) ?? 'popular'
@@ -42,12 +43,24 @@ export function ProductsPage() {
       isFlashSale: searchParams.get('isFlashSale') === 'true' || undefined,
       isCustomizable: searchParams.get('isCustomizable') === 'true' || undefined,
       hasWholesale: searchParams.get('hasWholesale') === 'true' || undefined,
+      minPrice: searchParams.get('minPrice') ? Number(searchParams.get('minPrice')) : undefined,
+      maxPrice: searchParams.get('maxPrice') ? Number(searchParams.get('maxPrice')) : undefined,
     }),
     [searchParams],
   )
 
-  const query: ProductQuery = { status: 'active', q, sortBy, ...filters }
-  const { data: products = [], isLoading } = useProducts(query)
+  const query: ProductQuery = {
+    status: 'active',
+    q,
+    sortBy,
+    page,
+    limit: PAGE_SIZE,
+    ...filters,
+  }
+
+  const { data, isLoading } = useProducts(query)
+  const products = data?.items ?? []
+  const total = data?.total ?? 0
 
   const updateParams = (next: Record<string, string | undefined>) => {
     const params = new URLSearchParams(searchParams)
@@ -55,8 +68,18 @@ export function ProductsPage() {
       if (val) params.set(key, val)
       else params.delete(key)
     })
+    // Remove page when changing filters/search/sort
+    params.delete('page')
     setSearchParams(params)
     setPage(1)
+  }
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage)
+    const params = new URLSearchParams(searchParams)
+    if (newPage > 1) params.set('page', String(newPage))
+    else params.delete('page')
+    setSearchParams(params, { replace: true })
   }
 
   const applyFilters = (f: FilterState) =>
@@ -66,17 +89,26 @@ export function ProductsPage() {
       isFlashSale: f.isFlashSale ? 'true' : undefined,
       isCustomizable: f.isCustomizable ? 'true' : undefined,
       hasWholesale: f.hasWholesale ? 'true' : undefined,
+      minPrice: f.minPrice != null ? String(f.minPrice) : undefined,
+      maxPrice: f.maxPrice != null ? String(f.maxPrice) : undefined,
     })
 
-  const pageCount = Math.ceil(products.length / PAGE_SIZE)
-  const pageItems = products.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  // Clear everything including search query
+  const clearAll = () => {
+    const params = new URLSearchParams()
+    // keep sort if wanted, but for simplicity clear all
+    setSearchParams(params)
+    setPage(1)
+  }
+
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   return (
     <PageContainer>
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">{q ? `Kết quả cho "${q}"` : 'Tất cả sản phẩm'}</h1>
-          <p className="text-sm text-muted-foreground">{products.length} sản phẩm</p>
+          <p className="text-sm text-muted-foreground">{total} sản phẩm</p>
         </div>
         <div className="flex items-center gap-2">
           <Sheet>
@@ -86,7 +118,7 @@ export function ProductsPage() {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-80 overflow-y-auto p-4">
-              <ProductFilters value={filters} onChange={applyFilters} />
+              <ProductFilters value={filters} onChange={applyFilters} onClear={clearAll} />
             </SheetContent>
           </Sheet>
           <Select value={sortBy} onValueChange={(v) => updateParams({ sortBy: v })}>
@@ -107,7 +139,7 @@ export function ProductsPage() {
       <div className="grid gap-6 lg:grid-cols-[16rem_1fr]">
         <aside className="hidden lg:block">
           <div className="sticky top-20 rounded-xl border border-border p-4">
-            <ProductFilters value={filters} onChange={applyFilters} />
+            <ProductFilters value={filters} onChange={applyFilters} onClear={clearAll} />
           </div>
         </aside>
 
@@ -119,8 +151,8 @@ export function ProductsPage() {
             />
           ) : (
             <>
-              <ProductGrid products={pageItems} loading={isLoading} />
-              <Pagination page={page} pageCount={pageCount} onPageChange={setPage} />
+              <ProductGrid products={products} loading={isLoading} />
+              <Pagination page={page} pageCount={pageCount} onPageChange={handlePageChange} />
             </>
           )}
         </div>

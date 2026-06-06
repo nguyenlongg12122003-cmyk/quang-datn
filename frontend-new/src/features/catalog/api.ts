@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { catalogApi, type ProductQuery } from '@/lib/api/endpoints/catalog'
+import { catalogApi, type ProductQuery, type ProductListResponse } from '@/lib/api/endpoints/catalog'
 import { queryKeys } from '@/lib/query/keys'
 
 export function useCategories() {
@@ -19,7 +19,7 @@ export function useBrands() {
 }
 
 export function useProducts(query: ProductQuery) {
-  return useQuery({
+  return useQuery<ProductListResponse>({
     queryKey: queryKeys.products.list(query),
     queryFn: () => catalogApi.listProducts(query),
   })

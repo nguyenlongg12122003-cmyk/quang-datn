@@ -3,6 +3,7 @@ import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { useBrands, useCategories } from '@/features/catalog/api'
 
 export interface FilterState {
@@ -11,24 +12,32 @@ export interface FilterState {
   isFlashSale?: boolean
   isCustomizable?: boolean
   hasWholesale?: boolean
+  minPrice?: number
+  maxPrice?: number
 }
 
 interface ProductFiltersProps {
   value: FilterState
   onChange: (next: FilterState) => void
+  onClear?: () => void
 }
 
-export function ProductFilters({ value, onChange }: ProductFiltersProps) {
+export function ProductFilters({ value, onChange, onClear }: ProductFiltersProps) {
   const { data: categories = [] } = useCategories()
   const { data: brands = [] } = useBrands()
 
   const patch = (p: Partial<FilterState>) => onChange({ ...value, ...p })
 
+  const handleClear = () => {
+    if (onClear) onClear()
+    else onChange({})
+  }
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h3 className="font-semibold">Bộ lọc</h3>
-        <Button variant="ghost" size="sm" onClick={() => onChange({})}>
+        <Button variant="ghost" size="sm" onClick={handleClear}>
           Xóa lọc
         </Button>
       </div>
@@ -67,6 +76,35 @@ export function ProductFilters({ value, onChange }: ProductFiltersProps) {
             </label>
           ))}
         </RadioGroup>
+      </div>
+
+      <Separator />
+
+      <div className="space-y-2">
+        <Label className="text-xs font-semibold uppercase text-muted-foreground">Khoảng giá</Label>
+        <div className="flex items-center gap-2">
+          <Input
+            type="number"
+            placeholder="Từ"
+            value={value.minPrice ?? ''}
+            onChange={(e) => {
+              const v = e.target.value ? Number(e.target.value) : undefined
+              patch({ minPrice: v })
+            }}
+            className="h-8"
+          />
+          <span className="text-muted-foreground">–</span>
+          <Input
+            type="number"
+            placeholder="Đến"
+            value={value.maxPrice ?? ''}
+            onChange={(e) => {
+              const v = e.target.value ? Number(e.target.value) : undefined
+              patch({ maxPrice: v })
+            }}
+            className="h-8"
+          />
+        </div>
       </div>
 
       <Separator />

@@ -79,7 +79,7 @@ export function HomePage() {
         </section>
 
         {/* Flash sale */}
-        {flashSale.isLoading || (flashSale.data && flashSale.data.length > 0) ? (
+        {flashSale.isLoading || (flashSale.data?.items && flashSale.data.items.length > 0) ? (
           <section>
             <SectionHeading
               title="⚡ Flash Sale"
@@ -92,7 +92,7 @@ export function HomePage() {
                 </Button>
               }
             />
-            <ProductGrid products={flashSale.data ?? []} loading={flashSale.isLoading} skeletonCount={5} />
+            <ProductGrid products={flashSale.data?.items ?? []} loading={flashSale.isLoading} skeletonCount={5} />
           </section>
         ) : null}
 
@@ -108,7 +108,7 @@ export function HomePage() {
               </Button>
             }
           />
-          <ProductGrid products={bestSellers.data ?? []} loading={bestSellers.isLoading} />
+          <ProductGrid products={bestSellers.data?.items ?? []} loading={bestSellers.isLoading} />
         </section>
       </PageContainer>
     </div>

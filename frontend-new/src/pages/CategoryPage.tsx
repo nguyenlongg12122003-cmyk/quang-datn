@@ -13,14 +13,18 @@ export function CategoryPage() {
   const [page, setPage] = useState(1)
   const { data: categories = [] } = useCategories()
   const category = categories.find((c) => c.slug === slug)
-  const { data: products = [], isLoading } = useProducts({
+
+  const { data, isLoading } = useProducts({
     status: 'active',
     categorySlug: slug,
     sortBy: 'popular',
+    page,
+    limit: PAGE_SIZE,
   })
 
-  const pageCount = Math.ceil(products.length / PAGE_SIZE)
-  const pageItems = products.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const products = data?.items ?? []
+  const total = data?.total ?? 0
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   return (
     <PageContainer className="space-y-6">
@@ -35,7 +39,7 @@ export function CategoryPage() {
         <EmptyState title="Danh mục chưa có sản phẩm" />
       ) : (
         <>
-          <ProductGrid products={pageItems} loading={isLoading} />
+          <ProductGrid products={products} loading={isLoading} />
           <Pagination page={page} pageCount={pageCount} onPageChange={setPage} />
         </>
       )}

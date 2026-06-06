@@ -134,8 +134,10 @@ router.get('/products', async (req, res, next) => {
       status,
       minPrice,
       maxPrice,
-      limit,
+      page = '1',
+      limit = '20',
     } = req.query;
+
     const pool = await getPool();
     const request = pool.request();
 
@@ -154,7 +156,7 @@ router.get('/products', async (req, res, next) => {
     }
     if (q) {
       request.input('q', sql.NVarChar, `%${String(q)}%`);
-      conditions.push('(name LIKE @q OR sku LIKE @q OR tags LIKE @q)');
+      conditions.push('(name LIKE @q OR sku LIKE @q OR tags LIKE @q OR description LIKE @q)');
     }
     if (minPrice != null && minPrice !== '') {
       const parsedMin = Number(minPrice);
@@ -192,14 +194,33 @@ router.get('/products', async (req, res, next) => {
     if (sortBy === 'newest') orderBy = 'createdAt DESC';
     if (sortBy === 'rating') orderBy = 'rating DESC';
 
-    const parsedLimit = Number(limit);
-    if (Number.isFinite(parsedLimit) && parsedLimit > 0) {
-      request.input('limit', sql.Int, parsedLimit);
-    }
+    const parsedPage = Math.max(1, Number(page) || 1);
+    const parsedLimit = Math.min(100, Math.max(1, Number(limit) || 20));
+    const offset = (parsedPage - 1) * parsedLimit;
 
-    const topClause = Number.isFinite(parsedLimit) && parsedLimit > 0 ? 'TOP (@limit)' : '';
-    const result = await request.query(`SELECT ${topClause} * FROM dbo.products ${whereClause} ORDER BY ${orderBy}`);
-    return res.json(result.recordset.map(mapProductRow));
+    request.input('offset', sql.Int, offset);
+    request.input('limit', sql.Int, parsedLimit);
+
+    // Use window function to get total count in one query
+    const result = await request.query(`
+      SELECT *, COUNT(*) OVER() AS totalCount
+      FROM dbo.products
+      ${whereClause}
+      ORDER BY ${orderBy}
+      OFFSET @offset ROWS
+      FETCH NEXT @limit ROWS ONLY
+    `);
+
+    const rows = result.recordset;
+    const total = rows.length > 0 ? Number(rows[0].totalCount) : 0;
+
+    // Remove the totalCount from each row before mapping
+    const items = rows.map((row) => {
+      const { totalCount, ...rest } = row;
+      return mapProductRow(rest);
+    });
+
+    return res.json({ items, total });
   } catch (error) {
     return next(error);
   }
@@ -231,7 +252,12 @@ router.get('/search-suggestions', async (req, res, next) => {
     const pool = await getPool();
     const result = await pool.request()
       .input('q', sql.NVarChar, `%${q}%`)
-      .query('SELECT TOP 5 name FROM dbo.products WHERE name LIKE @q ORDER BY sold DESC');
+      .query(`
+        SELECT TOP 5 name 
+        FROM dbo.products 
+        WHERE name LIKE @q OR sku LIKE @q OR description LIKE @q OR tags LIKE @q
+        ORDER BY sold DESC
+      `);
     return res.json(result.recordset.map((r) => r.name));
   } catch (error) {
     return next(error);
