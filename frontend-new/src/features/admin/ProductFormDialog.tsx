@@ -82,7 +82,7 @@ function buildInitialState(product: Product | null): FormState {
 export function ProductFormDialog({ open, onOpenChange, product }: ProductFormDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+      <DialogContent className="max-h-[90vh] max-w-[720px] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{product ? 'Sửa sản phẩm' : 'Thêm sản phẩm'}</DialogTitle>
         </DialogHeader>
@@ -150,48 +150,64 @@ function ProductFormBody({ product, onClose }: ProductFormBodyProps) {
 
   return (
     <>
-        <div className="grid gap-3 sm:grid-cols-2">
+      <div className="space-y-3.5">
+        {/* Basic */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label="Tên sản phẩm" className="sm:col-span-2">
-            <Input value={form.name} onChange={(e) => set({ name: e.target.value })} />
+            <Input
+              value={form.name}
+              onChange={(e) => set({ name: e.target.value })}
+              placeholder="Tên sản phẩm"
+            />
           </Field>
+
           <Field label="SKU">
-            <Input value={form.sku} onChange={(e) => set({ sku: e.target.value })} />
+            <Input value={form.sku} onChange={(e) => set({ sku: e.target.value })} placeholder="SKU-001" />
           </Field>
-          <Field label="Slug (tự tạo nếu trống)">
-            <Input value={form.slug} onChange={(e) => set({ slug: e.target.value })} />
+          <Field label="Slug">
+            <Input
+              value={form.slug}
+              onChange={(e) => set({ slug: e.target.value })}
+              placeholder="tự động nếu để trống"
+            />
           </Field>
+        </div>
+
+        {/* Category / Brand / Status */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Field label="Danh mục">
             <Select value={form.categoryId} onValueChange={(v) => set({ categoryId: v })}>
-              <SelectTrigger><SelectValue placeholder="Chọn danh mục" /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder="Chọn danh mục" />
+              </SelectTrigger>
               <SelectContent>
                 {categories.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </Field>
           <Field label="Thương hiệu">
             <Select value={form.brandId} onValueChange={(v) => set({ brandId: v })}>
-              <SelectTrigger><SelectValue placeholder="Chọn thương hiệu" /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder="Chọn thương hiệu" />
+              </SelectTrigger>
               <SelectContent>
                 {brands.map((b) => (
-                  <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                  <SelectItem key={b.id} value={b.id}>
+                    {b.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Giá bán">
-            <Input type="number" value={form.price} onChange={(e) => set({ price: e.target.value })} />
-          </Field>
-          <Field label="Giá gốc">
-            <Input type="number" value={form.originalPrice} onChange={(e) => set({ originalPrice: e.target.value })} />
-          </Field>
-          <Field label="Tồn kho">
-            <Input type="number" value={form.stock} onChange={(e) => set({ stock: e.target.value })} />
-          </Field>
           <Field label="Trạng thái">
             <Select value={form.status} onValueChange={(v) => set({ status: v as Product['status'] })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="active">Đang bán</SelectItem>
                 <SelectItem value="inactive">Ngừng bán</SelectItem>
@@ -199,39 +215,109 @@ function ProductFormBody({ product, onClose }: ProductFormBodyProps) {
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Ảnh sản phẩm" className="sm:col-span-2">
-            <ImageUploader
-              value={form.imageUrl}
-              onChange={(url) => set({ imageUrl: url })}
-              previewClassName="size-28"
+        </div>
+
+        {/* Pricing & Stock */}
+        <div className="grid grid-cols-3 gap-3">
+          <Field label="Giá bán">
+            <Input
+              type="number"
+              value={form.price}
+              onChange={(e) => set({ price: e.target.value })}
+              placeholder="0"
             />
           </Field>
-          <Field label="Tags (phân tách bằng dấu phẩy)">
-            <Input value={form.tags} onChange={(e) => set({ tags: e.target.value })} />
+          <Field label="Giá gốc">
+            <Input
+              type="number"
+              value={form.originalPrice}
+              onChange={(e) => set({ originalPrice: e.target.value })}
+              placeholder="0"
+            />
           </Field>
-          <Field label="Màu sắc (phân tách bằng dấu phẩy)">
-            <Input value={form.colors} onChange={(e) => set({ colors: e.target.value })} />
+          <Field label="Tồn kho">
+            <Input
+              type="number"
+              value={form.stock}
+              onChange={(e) => set({ stock: e.target.value })}
+              placeholder="0"
+            />
           </Field>
-          <Field label="Mô tả" className="sm:col-span-2">
-            <Textarea value={form.description} onChange={(e) => set({ description: e.target.value })} />
-          </Field>
+        </div>
 
-          <div className="flex items-center justify-between rounded-lg border border-border p-3">
-            <Label>Flash Sale</Label>
-            <Switch checked={form.isFlashSale} onCheckedChange={(c) => set({ isFlashSale: c })} />
-          </div>
-          {form.isFlashSale ? (
-            <Field label="Giá Flash Sale">
-              <Input type="number" value={form.flashSalePrice} onChange={(e) => set({ flashSalePrice: e.target.value })} />
-            </Field>
-          ) : (
-            <div />
-          )}
-          <div className="flex items-center justify-between rounded-lg border border-border p-3">
-            <Label>Cho phép tùy chỉnh in</Label>
-            <Switch checked={form.isCustomizable} onCheckedChange={(c) => set({ isCustomizable: c })} />
+        {/* Image */}
+        <Field label="Ảnh sản phẩm">
+          <ImageUploader
+            value={form.imageUrl}
+            onChange={(url) => set({ imageUrl: url })}
+            previewClassName="size-20"
+          />
+        </Field>
+
+        {/* Tags & Colors */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Field label="Tags">
+            <Input
+              value={form.tags}
+              onChange={(e) => set({ tags: e.target.value })}
+              placeholder="văn phòng, in ấn, quà tặng"
+            />
+          </Field>
+          <Field label="Màu sắc">
+            <Input
+              value={form.colors}
+              onChange={(e) => set({ colors: e.target.value })}
+              placeholder="Đỏ, Xanh dương, Đen"
+            />
+          </Field>
+        </div>
+
+        {/* Description */}
+        <Field label="Mô tả">
+          <Textarea
+            value={form.description}
+            onChange={(e) => set({ description: e.target.value })}
+            placeholder="Mô tả ngắn gọn về sản phẩm..."
+            className="min-h-[72px]"
+          />
+        </Field>
+
+        {/* Options - compact */}
+        <div className="rounded-md border border-border p-2.5">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={form.isFlashSale}
+                onCheckedChange={(c) => set({ isFlashSale: c })}
+                id="flashsale"
+              />
+              <Label htmlFor="flashsale" className="cursor-pointer text-sm">
+                Flash Sale
+              </Label>
+              {form.isFlashSale && (
+                <Input
+                  type="number"
+                  value={form.flashSalePrice}
+                  onChange={(e) => set({ flashSalePrice: e.target.value })}
+                  className="ml-1 h-7 w-24 text-sm"
+                  placeholder="Giá KM"
+                />
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={form.isCustomizable}
+                onCheckedChange={(c) => set({ isCustomizable: c })}
+                id="customizable"
+              />
+              <Label htmlFor="customizable" className="cursor-pointer text-sm">
+                Cho phép tùy chỉnh in
+              </Label>
+            </div>
           </div>
         </div>
+      </div>
 
       <DialogFooter>
         <Button onClick={submit} disabled={pending}>
@@ -244,8 +330,8 @@ function ProductFormBody({ product, onClose }: ProductFormBodyProps) {
 
 function Field({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
   return (
-    <div className={className ? `space-y-1.5 ${className}` : 'space-y-1.5'}>
-      <Label>{label}</Label>
+    <div className={className ? `space-y-1 ${className}` : 'space-y-1'}>
+      <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
       {children}
     </div>
   )
