@@ -59,11 +59,11 @@ export function VoucherInput({ subtotal, applied, onApply }: VoucherInputProps) 
 
   if (applied) {
     return (
-      <div className="flex items-center justify-between rounded-lg border border-primary/40 bg-primary/5 p-3">
+      <div className="flex items-center justify-between rounded-lg border border-commerce/40 bg-commerce/5 p-3">
         <div className="flex items-center gap-2 text-sm">
-          <Check className="size-4 text-primary" />
+          <Check className="size-4 text-commerce" />
           <span className="font-medium">{applied.voucher.code}</span>
-          <span className="text-muted-foreground">−{formatCurrency(applied.discount)}</span>
+          <span className="font-medium text-commerce">−{formatCurrency(applied.discount)}</span>
         </div>
         <Button variant="ghost" size="icon" className="size-7" onClick={() => onApply(null)} aria-label="Bỏ mã">
           <X className="size-4" />
@@ -93,7 +93,7 @@ export function VoucherInput({ subtotal, applied, onApply }: VoucherInputProps) 
       {savedVouchers.length > 0 ? (
         <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
           <PopoverTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-auto w-full justify-between px-1 text-primary">
+            <Button variant="ghost" size="sm" className="h-auto w-full justify-between px-1 text-commerce">
               <span className="flex items-center gap-1.5">
                 <Ticket className="size-4" />
                 Chọn voucher đã lưu ({savedVouchers.length})
@@ -141,7 +141,7 @@ function SavedVoucherList({ vouchers, subtotal, loading, onPick }: SavedVoucherL
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-medium">{uv.voucher.code}</span>
-                  <span className="text-sm font-medium text-primary">
+                  <span className="text-sm font-medium text-commerce">
                     {describeVoucherValue(uv.voucher)}
                   </span>
                 </div>

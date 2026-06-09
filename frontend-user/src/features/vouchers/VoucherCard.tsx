@@ -17,7 +17,7 @@ interface VoucherCardProps {
 export function VoucherCard({ voucher, onClaim, claiming, claimed, used }: VoucherCardProps) {
   return (
     <div className={cn('flex overflow-hidden rounded-xl border border-border bg-card', used && 'opacity-60')}>
-      <div className="flex w-24 shrink-0 flex-col items-center justify-center gap-1 bg-primary p-3 text-primary-foreground">
+      <div className="flex w-24 shrink-0 flex-col items-center justify-center gap-1 bg-commerce p-3 text-commerce-foreground">
         <Ticket className="size-6" />
         <span className="text-center text-xs font-medium">Voucher</span>
       </div>
@@ -26,7 +26,7 @@ export function VoucherCard({ voucher, onClaim, claiming, claimed, used }: Vouch
           <span className="font-bold">{voucher.code}</span>
           {used ? <Badge variant="secondary">Đã dùng</Badge> : null}
         </div>
-        <p className="text-sm font-medium text-primary">{describeVoucherValue(voucher)}</p>
+        <p className="text-sm font-medium text-commerce">{describeVoucherValue(voucher)}</p>
         <p className="text-xs text-muted-foreground">
           Đơn tối thiểu {formatCurrency(voucher.minOrderValue)}
         </p>

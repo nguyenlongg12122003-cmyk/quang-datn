@@ -2,9 +2,9 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useNavigate } from 'react-router'
+import { Loader2, Lock, Mail } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import {
   Form,
   FormControl,
@@ -13,8 +13,9 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Logo } from '@/components/common/Logo'
+import { AuthLayout } from '@/components/auth/AuthLayout'
+import { InputWithIcon } from '@/components/auth/InputWithIcon'
+import { PasswordInput } from '@/components/auth/PasswordInput'
 import { useLogin } from '@/features/auth/api'
 import { getErrorMessage } from '@/lib/api/axios'
 
@@ -49,53 +50,58 @@ export function LoginPage() {
   }
 
   return (
-    <div className="grid min-h-svh place-items-center bg-secondary/30 px-4">
-      <div className="w-full max-w-md space-y-6">
-        <div className="flex justify-center">
-          <Logo />
-        </div>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl">Đăng nhập quản trị</CardTitle>
-            <CardDescription>Chỉ dành cho tài khoản quản trị viên.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input type="email" placeholder="admin@email.com" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Mật khẩu</FormLabel>
-                      <FormControl>
-                        <Input type="password" placeholder="••••••" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <Button type="submit" className="w-full" disabled={login.isPending}>
-                  {login.isPending ? 'Đang đăng nhập…' : 'Đăng nhập'}
-                </Button>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+    <AuthLayout title="Đăng nhập quản trị">
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <InputWithIcon
+                    icon={Mail}
+                    type="email"
+                    autoComplete="email"
+                    placeholder="admin@email.com"
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Mật khẩu</FormLabel>
+                <FormControl>
+                  <PasswordInput
+                    icon={Lock}
+                    autoComplete="current-password"
+                    placeholder="••••••"
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <Button type="submit" className="h-10 w-full" size="lg" disabled={login.isPending}>
+            {login.isPending ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                Đang đăng nhập…
+              </>
+            ) : (
+              'Đăng nhập'
+            )}
+          </Button>
+        </form>
+      </Form>
+    </AuthLayout>
   )
 }

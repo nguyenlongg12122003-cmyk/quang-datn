@@ -1,3 +1,4 @@
+import { Link } from 'react-router'
 import { LogOut } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -19,7 +20,7 @@ export function AdminAccountMenu() {
   if (!user) {
     return (
       <Button asChild variant="default" size="sm">
-        <a href="/login">Đăng nhập</a>
+        <Link to="/login">Đăng nhập</Link>
       </Button>
     )
   }

@@ -92,11 +92,15 @@ export function ProductCard({ product, className }: ProductCardProps) {
           )}
           <div className="absolute left-2 top-2 flex flex-col gap-1">
             {flashSale ? (
-              <Badge className="gap-1 bg-primary">
+              <Badge className="gap-1 bg-commerce text-commerce-foreground hover:bg-commerce/90">
                 <Sparkles className="size-3" /> Flash Sale
               </Badge>
             ) : null}
-            {discount > 0 ? <Badge variant="destructive">-{discount}%</Badge> : null}
+            {discount > 0 ? (
+              <Badge className="bg-commerce text-commerce-foreground hover:bg-commerce/90">
+                -{discount}%
+              </Badge>
+            ) : null}
           </div>
         </div>
       </Link>

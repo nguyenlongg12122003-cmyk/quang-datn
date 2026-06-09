@@ -104,6 +104,8 @@ export function PurchasePanel({ product }: PurchasePanelProps) {
 
   const extraPrice = selectedOption?.extraPrice ?? 0
   const lineTotal = (unitPrice + extraPrice) * quantity
+  const onSale =
+    product.originalPrice != null && product.originalPrice > unitPrice
 
   return (
     <div className="space-y-5">
@@ -121,7 +123,9 @@ export function PurchasePanel({ product }: PurchasePanelProps) {
       <div className="rounded-xl bg-secondary/50 p-4">
         <PriceTag price={unitPrice} originalPrice={product.originalPrice} size="lg" />
         {isFlashSaleActive(product) ? (
-          <Badge className="mt-2">⚡ Flash Sale</Badge>
+          <Badge className="mt-2 bg-commerce text-commerce-foreground hover:bg-commerce/90">
+            ⚡ Flash Sale
+          </Badge>
         ) : null}
       </div>
 
@@ -217,7 +221,9 @@ export function PurchasePanel({ product }: PurchasePanelProps) {
 
       <div className="flex items-center justify-between rounded-lg bg-muted p-3">
         <span className="text-sm text-muted-foreground">Tạm tính</span>
-        <span className="text-lg font-bold text-primary">{formatCurrency(lineTotal)}</span>
+        <span className={onSale ? 'text-lg font-bold text-commerce' : 'text-lg font-bold text-primary'}>
+          {formatCurrency(lineTotal)}
+        </span>
       </div>
 
       <div className="flex gap-3">

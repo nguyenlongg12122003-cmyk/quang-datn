@@ -3,7 +3,7 @@ pid: 37340
 cwd: "D:\Theris\QuangProject"
 command: "if (Test-Path \"D:\\Theris\\QuangProject\\frontend-new\\.env\") { Copy-Item \"D:\\Theris\\QuangProject\\frontend-new\\.env\" \"D:\\Theris\\QuangProject\\frontend-user\\.env\" -Force; Copy-Item \"D:\\Theris\\QuangProject\\frontend-new\\.env\" \"D:\\Theris\\QuangProject\\frontend-admin\\.env\" -Force }; cd \"D:\\Theris\\QuangProject\" && npm install"
 started_at: 2026-06-09T03:48:03.873Z
-running_for_ms: 10655000 
+running_for_ms: 10735008 
 ---
 
 added 373 packages, and audited 376 packages in 3m

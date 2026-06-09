@@ -2,9 +2,9 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Link, useNavigate } from 'react-router'
+import { Loader2, Mail, Phone, User } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import {
   Form,
   FormControl,
@@ -13,8 +13,9 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Logo } from '@/components/common/Logo'
+import { AuthLayout } from '@/components/auth/AuthLayout'
+import { InputWithIcon } from '@/components/auth/InputWithIcon'
+import { PasswordInput } from '@/components/auth/PasswordInput'
 import { useRegister } from '@/features/auth/api'
 import { getErrorMessage } from '@/lib/api/axios'
 
@@ -47,85 +48,98 @@ export function RegisterPage() {
   }
 
   return (
-    <div className="grid min-h-svh place-items-center bg-secondary/30 px-4 py-10">
-      <div className="w-full max-w-md space-y-6">
-        <div className="flex justify-center">
-          <Logo />
-        </div>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl">Đăng ký</CardTitle>
-            <CardDescription>Tạo tài khoản để bắt đầu mua sắm.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Họ và tên</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Nguyễn Văn A" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input type="email" placeholder="ban@email.com" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Số điện thoại</FormLabel>
-                      <FormControl>
-                        <Input placeholder="0912345678" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Mật khẩu</FormLabel>
-                      <FormControl>
-                        <Input type="password" placeholder="••••••" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <Button type="submit" className="w-full" disabled={register.isPending}>
-                  {register.isPending ? 'Đang tạo…' : 'Đăng ký'}
-                </Button>
-              </form>
-            </Form>
-            <p className="mt-4 text-center text-sm text-muted-foreground">
-              Đã có tài khoản?{' '}
-              <Link to="/login" className="font-medium text-primary hover:underline">
-                Đăng nhập
-              </Link>
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+    <AuthLayout
+      title="Đăng ký"
+      footer={
+        <p className="text-sm text-muted-foreground">
+          Đã có tài khoản?{' '}
+          <Link
+            to="/login"
+            className="font-medium text-primary underline-offset-4 hover:underline"
+          >
+            Đăng nhập
+          </Link>
+        </p>
+      }
+    >
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <FormField
+            control={form.control}
+            name="name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Họ và tên</FormLabel>
+                <FormControl>
+                  <InputWithIcon icon={User} autoComplete="name" placeholder="Nguyễn Văn A" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <InputWithIcon
+                    icon={Mail}
+                    type="email"
+                    autoComplete="email"
+                    placeholder="ban@email.com"
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="phone"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Số điện thoại</FormLabel>
+                <FormControl>
+                  <InputWithIcon
+                    icon={Phone}
+                    type="tel"
+                    autoComplete="tel"
+                    placeholder="0912345678"
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Mật khẩu</FormLabel>
+                <FormControl>
+                  <PasswordInput autoComplete="new-password" placeholder="••••••" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <Button type="submit" className="mt-2 h-10 w-full" size="lg" disabled={register.isPending}>
+            {register.isPending ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                Đang tạo…
+              </>
+            ) : (
+              'Đăng ký'
+            )}
+          </Button>
+        </form>
+      </Form>
+    </AuthLayout>
   )
 }

@@ -32,7 +32,7 @@ const NAV_ITEMS: NavItem[] = [
 
 export function AdminSidebar() {
   return (
-    <nav className="flex flex-col gap-1 p-3">
+    <nav className="flex flex-col gap-0.5 p-3">
       {NAV_ITEMS.map((item) => (
         <NavLink
           key={item.to}
@@ -40,14 +40,14 @@ export function AdminSidebar() {
           end={item.end}
           className={({ isActive }) =>
             cn(
-              'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+              'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all',
               isActive
-                ? 'bg-sidebar-primary text-sidebar-primary-foreground'
-                : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+                ? 'bg-primary/10 text-primary shadow-xs'
+                : 'text-muted-foreground hover:bg-muted hover:text-foreground',
             )
           }
         >
-          <item.icon className="size-4" />
+          <item.icon className="size-4 shrink-0" />
           {item.label}
         </NavLink>
       ))}

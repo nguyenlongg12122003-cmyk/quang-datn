@@ -15,13 +15,13 @@ const sizeMap = {
 }
 
 export function PriceTag({ price, originalPrice, className, size = 'md' }: PriceTagProps) {
-  const showOriginal = originalPrice != null && originalPrice > price
+  const onSale = originalPrice != null && originalPrice > price
   return (
     <div className={cn('flex items-baseline gap-2', className)}>
-      <span className={cn('font-bold text-primary', sizeMap[size])}>
+      <span className={cn('font-bold', onSale ? 'text-commerce' : 'text-primary', sizeMap[size])}>
         {formatCurrency(price)}
       </span>
-      {showOriginal ? (
+      {onSale ? (
         <span className="text-xs text-muted-foreground line-through">
           {formatCurrency(originalPrice)}
         </span>

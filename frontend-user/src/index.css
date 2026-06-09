@@ -4,115 +4,120 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
-  QuangVPP brand palette (cyan-blue monochrome)
-  50:  #e8f4f8   200: #b8d8e8   300: #88c4d8   500: #58a8c8   600: #2890b8
-  Light-first. Primary = #2890b8 with white foreground.
+  QuangVPP — Paper & Ink Retail (frontend-user)
+  Primary teal for brand/actions, amber commerce accent for prices & vouchers.
 */
 
 :root {
   --radius: 0.625rem;
 
   /* Brand ramp */
-  --brand-50: #e8f4f8;
-  --brand-100: #d3e9f1;
-  --brand-200: #b8d8e8;
-  --brand-300: #88c4d8;
-  --brand-400: #58a8c8;
-  --brand-500: #2890b8;
-  --brand-600: #1f7a9c;
-  --brand-700: #185a72;
+  --brand-50: #edf5f8;
+  --brand-100: #d8eaf0;
+  --brand-200: #b8d8e4;
+  --brand-300: #8bbfd1;
+  --brand-400: #5ba3bc;
+  --brand-500: #1e7a96;
+  --brand-600: #186678;
+  --brand-700: #124f5c;
 
   /* Surfaces & text */
-  --background: #ffffff;
-  --foreground: #0f2c38;
+  --background: #fafbfc;
+  --foreground: #1c2b33;
 
   --card: #ffffff;
-  --card-foreground: #0f2c38;
+  --card-foreground: #1c2b33;
 
   --popover: #ffffff;
-  --popover-foreground: #0f2c38;
+  --popover-foreground: #1c2b33;
 
   /* Primary / actions */
-  --primary: #2890b8;
+  --primary: #1e7a96;
   --primary-foreground: #ffffff;
 
-  --secondary: #e8f4f8;
+  --secondary: #edf5f8;
   --secondary-foreground: #145063;
 
-  --muted: #e8f4f8;
-  --muted-foreground: #5a7785;
+  --muted: #edf5f8;
+  --muted-foreground: #5a7080;
 
-  --accent: #b8d8e8;
-  --accent-foreground: #0f3a48;
+  /* UI accent (hover/focus surfaces — not sale color) */
+  --accent: #e8f0f4;
+  --accent-foreground: #1c2b33;
+
+  /* Commerce accent (prices, vouchers, promotions) */
+  --commerce: #e8943a;
+  --commerce-foreground: #ffffff;
 
   --destructive: #dc2626;
   --destructive-foreground: #ffffff;
 
-  --border: #d3e7ee;
-  --input: #b8d8e8;
-  --ring: #58a8c8;
+  --border: #d8e6ec;
+  --input: #d8e6ec;
+  --ring: #5ba3bc;
 
-  /* Charts (admin) */
-  --chart-1: #2890b8;
-  --chart-2: #58a8c8;
-  --chart-3: #88c4d8;
-  --chart-4: #b8d8e8;
-  --chart-5: #185a72;
+  --chart-1: #1e7a96;
+  --chart-2: #e8943a;
+  --chart-3: #5ba3bc;
+  --chart-4: #8bbfd1;
+  --chart-5: #124f5c;
 
-  /* Sidebar (admin) */
-  --sidebar: #f4fafc;
-  --sidebar-foreground: #0f2c38;
-  --sidebar-primary: #2890b8;
+  --sidebar: #edf5f8;
+  --sidebar-foreground: #1c2b33;
+  --sidebar-primary: #1e7a96;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #e8f4f8;
+  --sidebar-accent: #e8f0f4;
   --sidebar-accent-foreground: #145063;
-  --sidebar-border: #d3e7ee;
-  --sidebar-ring: #58a8c8;
+  --sidebar-border: #d8e6ec;
+  --sidebar-ring: #5ba3bc;
 }
 
 .dark {
-  --background: #0a1b22;
-  --foreground: #e8f4f8;
+  --background: #0f1a20;
+  --foreground: #edf5f8;
 
-  --card: #0f2530;
-  --card-foreground: #e8f4f8;
+  --card: #15242c;
+  --card-foreground: #edf5f8;
 
-  --popover: #0f2530;
-  --popover-foreground: #e8f4f8;
+  --popover: #15242c;
+  --popover-foreground: #edf5f8;
 
-  --primary: #58a8c8;
-  --primary-foreground: #04141a;
+  --primary: #5ba3bc;
+  --primary-foreground: #0a1418;
 
-  --secondary: #15323d;
-  --secondary-foreground: #e8f4f8;
+  --secondary: #1a2d36;
+  --secondary-foreground: #edf5f8;
 
-  --muted: #15323d;
-  --muted-foreground: #9bbac6;
+  --muted: #1a2d36;
+  --muted-foreground: #8fa8b5;
 
-  --accent: #1d4654;
-  --accent-foreground: #e8f4f8;
+  --accent: #1f3540;
+  --accent-foreground: #edf5f8;
+
+  --commerce: #f0a84e;
+  --commerce-foreground: #1a1208;
 
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
 
-  --border: #21434f;
-  --input: #21434f;
-  --ring: #58a8c8;
+  --border: #243a45;
+  --input: #243a45;
+  --ring: #5ba3bc;
 
-  --chart-1: #58a8c8;
-  --chart-2: #88c4d8;
-  --chart-3: #b8d8e8;
-  --chart-4: #2890b8;
-  --chart-5: #e8f4f8;
+  --chart-1: #5ba3bc;
+  --chart-2: #f0a84e;
+  --chart-3: #8bbfd1;
+  --chart-4: #1e7a96;
+  --chart-5: #edf5f8;
 
-  --sidebar: #0f2530;
-  --sidebar-foreground: #e8f4f8;
-  --sidebar-primary: #58a8c8;
-  --sidebar-primary-foreground: #04141a;
-  --sidebar-accent: #15323d;
-  --sidebar-accent-foreground: #e8f4f8;
-  --sidebar-border: #21434f;
-  --sidebar-ring: #58a8c8;
+  --sidebar: #15242c;
+  --sidebar-foreground: #edf5f8;
+  --sidebar-primary: #5ba3bc;
+  --sidebar-primary-foreground: #0a1418;
+  --sidebar-accent: #1a2d36;
+  --sidebar-accent-foreground: #edf5f8;
+  --sidebar-border: #243a45;
+  --sidebar-ring: #5ba3bc;
 }
 
 @theme inline {
@@ -135,6 +140,8 @@
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+  --color-commerce: var(--commerce);
+  --color-commerce-foreground: var(--commerce-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
@@ -147,6 +154,7 @@
   --color-brand-300: var(--brand-300);
   --color-brand-400: var(--brand-400);
   --color-brand-500: var(--brand-500);
+  --color-brand-600: var(--brand-600);
   --color-brand-700: var(--brand-700);
 
   --color-chart-1: var(--chart-1);
@@ -177,7 +185,6 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
-  /* nprogress bar themed to brand */
   #nprogress .bar {
     background: var(--brand-500);
   }

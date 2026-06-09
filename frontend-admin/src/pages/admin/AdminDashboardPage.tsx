@@ -25,7 +25,8 @@ import { useDashboardStats, useRevenueReport } from '@/features/admin/api'
 import { formatCurrency, formatNumber } from '@/lib/format'
 import { ORDER_STATUS_LABELS } from '@/lib/constants'
 
-const CHART_COLORS = ['#2890b8', '#58a8c8', '#88c4d8', '#b8d8e8', '#e8f4f8', '#1f7497', '#155d7a']
+const CHART_COLORS = ['#0ea5e9', '#6366f1', '#10b981', '#f59e0b', '#8b5cf6', '#38bdf8', '#0284c7']
+const CHART_PRIMARY = '#0ea5e9'
 
 export function AdminDashboardPage() {
   const { data: stats, isLoading } = useDashboardStats()
@@ -42,10 +43,10 @@ export function AdminDashboardPage() {
   }
 
   const kpis = [
-    { label: 'Doanh thu', value: formatCurrency(stats.totalRevenue), icon: DollarSign, accent: 'bg-primary/10 text-primary' },
-    { label: 'Đơn hàng', value: formatNumber(stats.totalOrders), icon: ShoppingBag, accent: 'bg-sky-100 text-sky-700' },
-    { label: 'Sản phẩm', value: formatNumber(stats.totalProducts), icon: Package, accent: 'bg-indigo-100 text-indigo-700' },
-    { label: 'Khách hàng', value: formatNumber(stats.totalCustomers), icon: Users, accent: 'bg-cyan-100 text-cyan-700' },
+    { label: 'Doanh thu', value: formatCurrency(stats.totalRevenue), icon: DollarSign, accent: 'bg-chart-1/10 text-chart-1' },
+    { label: 'Đơn hàng', value: formatNumber(stats.totalOrders), icon: ShoppingBag, accent: 'bg-chart-2/10 text-chart-2' },
+    { label: 'Sản phẩm', value: formatNumber(stats.totalProducts), icon: Package, accent: 'bg-chart-3/10 text-chart-3' },
+    { label: 'Khách hàng', value: formatNumber(stats.totalCustomers), icon: Users, accent: 'bg-chart-5/10 text-chart-5' },
   ]
 
   const ordersByStatus = stats.ordersByStatus.map((o) => ({
@@ -92,15 +93,15 @@ export function AdminDashboardPage() {
               <AreaChart data={stats.revenueByMonth}>
                 <defs>
                   <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#2890b8" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#2890b8" stopOpacity={0} />
+                    <stop offset="5%" stopColor={CHART_PRIMARY} stopOpacity={0.35} />
+                    <stop offset="95%" stopColor={CHART_PRIMARY} stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e8f4f8" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis dataKey="month" fontSize={12} />
                 <YAxis fontSize={12} tickFormatter={(v) => `${v / 1_000_000}M`} />
                 <Tooltip formatter={(v) => formatCurrency(Number(v))} />
-                <Area type="monotone" dataKey="revenue" stroke="#2890b8" fill="url(#rev)" strokeWidth={2} />
+                <Area type="monotone" dataKey="revenue" stroke={CHART_PRIMARY} fill="url(#rev)" strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
           </CardContent>
@@ -157,7 +158,7 @@ export function AdminDashboardPage() {
                 <XAxis type="number" hide />
                 <YAxis type="category" dataKey="name" width={90} fontSize={12} />
                 <Tooltip formatter={(v) => formatCurrency(Number(v))} />
-                <Bar dataKey="revenue" fill="#58a8c8" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="revenue" fill={CHART_PRIMARY} radius={[0, 6, 6, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
