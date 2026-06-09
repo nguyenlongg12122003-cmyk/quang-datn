@@ -1,5 +1,6 @@
 import type { ProductQuery } from '@/lib/api/endpoints/catalog'
 import type { AdminOrderQuery } from '@/lib/api/endpoints/orders'
+import type { AdminVoucherQuery } from '@/lib/api/endpoints/vouchers'
 import type { AdminUserQuery } from '@/lib/api/endpoints/users'
 
 export const queryKeys = {
@@ -15,6 +16,7 @@ export const queryKeys = {
   },
   vouchers: {
     public: ['vouchers', 'public'] as const,
+    adminList: (query: AdminVoucherQuery) => ['vouchers', 'admin', query] as const,
   },
   orders: {
     adminList: (query: AdminOrderQuery) => ['orders', 'admin', query] as const,

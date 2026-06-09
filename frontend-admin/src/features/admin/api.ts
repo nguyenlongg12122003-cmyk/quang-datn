@@ -89,14 +89,18 @@ export function useSaveVoucher() {
       if (id) await voucherApi.update(id, payload)
       else await voucherApi.create(payload)
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['vouchers'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vouchers'] })
+    },
   })
 }
 export function useDeleteVoucher() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => voucherApi.remove(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['vouchers'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vouchers'] })
+    },
   })
 }
 

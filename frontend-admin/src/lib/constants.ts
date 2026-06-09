@@ -97,7 +97,8 @@ export const ORDER_TAB_LABELS = {
   needs_action: 'Cần xử lý',
   packing: 'Đang gói',
   shipping: 'Đang giao',
-  return_pending: 'Chờ hoàn trả',
+  delivered: 'Đã giao',
+  cancelled: 'Đã hủy',
 } as const
 
 export const ORDER_TAB_DESCRIPTIONS = {
@@ -107,5 +108,6 @@ export const ORDER_TAB_DESCRIPTIONS = {
     'Đơn cần can thiệp: chờ xác nhận, chờ chuyển đóng gói, chưa in phiếu, hoặc thanh toán online chưa về.',
   packing: 'Đơn đã xác nhận hoặc đang đóng gói tại kho.',
   shipping: 'Đơn đã bàn giao đơn vị vận chuyển.',
-  return_pending: 'Đơn có yêu cầu hoàn trả đang chờ duyệt.',
+  delivered: 'Đơn đã giao thành công cho khách hàng.',
+  cancelled: 'Đơn đã bị hủy bởi khách hoặc admin, hoặc do thanh toán thất bại.',
 } as const

@@ -46,6 +46,53 @@ setInterval(() => {
   }
 }, 60 * 60 * 1000);
 
+// Admin: list all vouchers with search/filter
+router.get('/manage', authMiddleware, adminMiddleware, async (req, res, next) => {
+  try {
+    const { q, status, type, sort } = req.query;
+    const pool = await getPool();
+    const request = pool.request();
+    const conditions = [];
+
+    if (q) {
+      request.input('q', sql.NVarChar, `%${String(q)}%`);
+      conditions.push('(code LIKE @q OR description LIKE @q)');
+    }
+
+    if (status && status !== 'all') {
+      if (status === 'expired') {
+        conditions.push("(endDate < SYSUTCDATETIME() OR [status] = 'expired')");
+      } else if (status === 'active') {
+        conditions.push("[status] = 'active' AND endDate >= SYSUTCDATETIME()");
+      } else if (status === 'inactive') {
+        conditions.push("[status] = 'inactive' AND endDate >= SYSUTCDATETIME()");
+      }
+    }
+
+    if (type && type !== 'all') {
+      request.input('typeFilter', sql.NVarChar, type);
+      conditions.push('[type] = @typeFilter');
+    }
+
+    let orderBy = 'startDate DESC';
+    if (sort === 'ending_soon') orderBy = 'endDate ASC';
+    if (sort === 'usage_desc') orderBy = 'usedCount DESC, startDate DESC';
+    if (sort === 'code_asc') orderBy = 'code ASC';
+
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const result = await request.query(`
+      SELECT *
+      FROM dbo.vouchers
+      ${where}
+      ORDER BY ${orderBy}
+    `);
+
+    return res.json(result.recordset);
+  } catch (error) {
+    return next(error);
+  }
+});
+
 // Public: list active vouchers only
 router.get('/', async (_req, res, next) => {
   try {

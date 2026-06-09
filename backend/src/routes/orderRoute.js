@@ -282,6 +282,8 @@ const ORDER_TAB_STATUS_MAP = {
   pending: ['pending'],
   packing: ['confirmed', 'processing'],
   shipping: ['shipping'],
+  delivered: ['delivered'],
+  cancelled: ['cancelled'],
 };
 
 async function loadOrderItemsForOrders(pool, orderIds) {
@@ -344,11 +346,21 @@ function appendOrderTabFilter(request, conditions, tab) {
   conditions.push(`[status] IN (${statuses.map((_, index) => `@tabStatus${index}`).join(', ')})`);
 }
 
+const ORDER_SORT_MAP = {
+  newest: 'createdAt DESC',
+  oldest: 'createdAt ASC',
+  total_desc: 'total DESC',
+  total_asc: 'total ASC',
+};
+
 async function buildAllOrders(pool, {
   status,
   tab,
   q,
   hasReturn,
+  paymentMethod,
+  paymentStatus,
+  sort,
   page,
   limit,
 } = {}) {
@@ -356,13 +368,23 @@ async function buildAllOrders(pool, {
   const conditions = [];
   const normalizedTab = tab && tab !== 'all' ? String(tab) : null;
 
-  if (normalizedTab === 'return_pending' || hasReturn === 'pending') {
-    conditions.push("returnRequest IS NOT NULL AND JSON_VALUE(returnRequest, '$.status') = 'pending'");
+  if (hasReturn === 'pending') {
+    conditions.push("returnRequest IS NOT NULL AND ISJSON(returnRequest) = 1 AND JSON_VALUE(returnRequest, '$.status') = 'pending'");
   } else if (normalizedTab) {
     appendOrderTabFilter(request, conditions, normalizedTab);
   } else if (status && status !== 'all') {
     request.input('statusFilter', sql.NVarChar, status);
     conditions.push('[status] = @statusFilter');
+  }
+
+  if (paymentMethod && paymentMethod !== 'all') {
+    request.input('paymentMethodFilter', sql.NVarChar, paymentMethod);
+    conditions.push('[paymentMethod] = @paymentMethodFilter');
+  }
+
+  if (paymentStatus && paymentStatus !== 'all') {
+    request.input('paymentStatusFilter', sql.NVarChar, paymentStatus);
+    conditions.push('[paymentStatus] = @paymentStatusFilter');
   }
 
   if (q) {
@@ -384,6 +406,7 @@ async function buildAllOrders(pool, {
   const parsedPage = Math.max(1, Number(page) || 1);
   const parsedLimit = Math.min(100, Math.max(1, Number(limit) || 20));
   const offset = (parsedPage - 1) * parsedLimit;
+  const orderBy = ORDER_SORT_MAP[sort] || ORDER_SORT_MAP.newest;
 
   request.input('offset', sql.Int, offset);
   request.input('limit', sql.Int, parsedLimit);
@@ -392,7 +415,7 @@ async function buildAllOrders(pool, {
     SELECT *, COUNT(*) OVER() AS totalCount
     FROM dbo.orders
     ${where}
-    ORDER BY createdAt DESC
+    ORDER BY ${orderBy}
     OFFSET @offset ROWS
     FETCH NEXT @limit ROWS ONLY
   `);
@@ -905,9 +928,19 @@ router.post('/:id/return-request', authMiddleware, async (req, res, next) => {
 // Get ALL orders (admin)
 router.get('/', authMiddleware, adminMiddleware, async (req, res, next) => {
   try {
-    const { status, tab, q, hasReturn, page, limit } = req.query;
+    const { status, tab, q, hasReturn, paymentMethod, paymentStatus, sort, page, limit } = req.query;
     const pool = await getPool();
-    const result = await buildAllOrders(pool, { status, tab, q, hasReturn, page, limit });
+    const result = await buildAllOrders(pool, {
+      status,
+      tab,
+      q,
+      hasReturn,
+      paymentMethod,
+      paymentStatus,
+      sort,
+      page,
+      limit,
+    });
     return res.json(result);
   } catch (error) {
     return next(error);

@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useState, type MouseEvent } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router'
-import { MessageSquare, Palette, Printer, Search } from 'lucide-react'
+import { MessageSquare, Palette, Printer } from 'lucide-react'
 import { toast } from 'sonner'
+import { AdminActiveFilterChips } from '@/components/admin/AdminActiveFilterChips'
+import { AdminDataPanel } from '@/components/admin/AdminDataPanel'
+import { AdminFilterField } from '@/components/admin/AdminFilterField'
+import { AdminFilterSelect } from '@/components/admin/AdminFilterSelect'
+import { AdminListToolbar } from '@/components/admin/AdminListToolbar'
+import { AdminPageHeader } from '@/components/admin/AdminPageHeader'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Input } from '@/components/ui/input'
-import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
   Table,
@@ -53,8 +57,8 @@ import {
   PAYMENT_STATUS_LABELS,
   SHIPPING_CARRIER_LABELS,
 } from '@/lib/constants'
-import type { OrderTab } from '@/lib/api/endpoints/orders'
-import type { Order, OrderStatus, ShippingCarrier } from '@/types'
+import type { OrderSort, OrderTab } from '@/lib/api/endpoints/orders'
+import type { Order, OrderStatus, PaymentMethod, PaymentStatus, ShippingCarrier } from '@/types'
 import { cn } from '@/lib/utils'
 
 const PAGE_SIZE = 20
@@ -65,7 +69,8 @@ const ORDER_TABS: OrderTab[] = [
   'needs_action',
   'packing',
   'shipping',
-  'return_pending',
+  'delivered',
+  'cancelled',
 ]
 
 const WAIT_SEVERITY_CLASSES = {
@@ -74,11 +79,51 @@ const WAIT_SEVERITY_CLASSES = {
   urgent: 'font-semibold text-red-700',
 } as const
 
+const PAYMENT_METHOD_FILTERS: Array<{ value: PaymentMethod | 'all'; label: string }> = [
+  { value: 'all', label: 'Tất cả PT thanh toán' },
+  { value: 'cod', label: 'COD' },
+  { value: 'vnpay', label: 'VNPay' },
+  { value: 'payos', label: 'PayOS' },
+]
+
+const PAYMENT_STATUS_FILTERS: Array<{ value: PaymentStatus | 'all'; label: string }> = [
+  { value: 'all', label: 'Tất cả TT' },
+  { value: 'pending', label: 'Chờ thanh toán' },
+  { value: 'paid', label: 'Đã thanh toán' },
+  { value: 'failed', label: 'Thất bại' },
+  { value: 'refunded', label: 'Đã hoàn tiền' },
+]
+
+const ORDER_SORT_OPTIONS: Array<{ value: OrderSort; label: string }> = [
+  { value: 'newest', label: 'Mới nhất' },
+  { value: 'oldest', label: 'Cũ nhất' },
+  { value: 'total_desc', label: 'Tổng cao nhất' },
+  { value: 'total_asc', label: 'Tổng thấp nhất' },
+]
+
 function parseTab(value: string | null): OrderTab {
+  if (value === 'return_pending') return 'cancelled'
   if (value && ORDER_TABS.includes(value as OrderTab)) {
     return value as OrderTab
   }
   return 'all'
+}
+
+function parsePaymentMethod(value: string | null): PaymentMethod | 'all' {
+  if (value === 'cod' || value === 'vnpay' || value === 'payos') return value
+  return 'all'
+}
+
+function parsePaymentStatus(value: string | null): PaymentStatus | 'all' {
+  if (value === 'pending' || value === 'paid' || value === 'failed' || value === 'refunded') {
+    return value
+  }
+  return 'all'
+}
+
+function parseOrderSort(value: string | null): OrderSort {
+  if (value === 'oldest' || value === 'total_desc' || value === 'total_asc') return value
+  return 'newest'
 }
 
 function syncOrderInState(current: Order | null, orderId: string, patch: Partial<Order>): Order | null {
@@ -96,6 +141,9 @@ export function AdminOrdersPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const tab = parseTab(searchParams.get('tab'))
   const page = Math.max(1, Number(searchParams.get('page') || '1') || 1)
+  const paymentMethod = parsePaymentMethod(searchParams.get('paymentMethod'))
+  const paymentStatus = parsePaymentStatus(searchParams.get('paymentStatus'))
+  const sort = parseOrderSort(searchParams.get('sort'))
   const [search, setSearch] = useState(searchParams.get('q') ?? '')
   const q = useDebounce(search, 300)
 
@@ -103,13 +151,16 @@ export function AdminOrdersPage() {
     () => ({
       tab: tab === 'all' ? undefined : tab,
       q: q.trim() || undefined,
+      paymentMethod: paymentMethod === 'all' ? undefined : paymentMethod,
+      paymentStatus: paymentStatus === 'all' ? undefined : paymentStatus,
+      sort: sort === 'newest' ? undefined : sort,
       page,
       limit: PAGE_SIZE,
     }),
-    [tab, q, page],
+    [tab, q, paymentMethod, paymentStatus, sort, page],
   )
 
-  const { data, isLoading } = useAdminOrders(query)
+  const { data, isLoading, isFetching, refetch } = useAdminOrders(query)
   const orders = data?.items ?? []
   const total = data?.total ?? 0
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
@@ -140,7 +191,10 @@ export function AdminOrdersPage() {
 
   const rangeStart = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
   const rangeEnd = Math.min(page * PAGE_SIZE, total)
-  const emptyState = getOrderTabEmptyState(tab, Boolean(q.trim()))
+  const hasExtraFilters =
+    paymentMethod !== 'all' || paymentStatus !== 'all' || sort !== 'newest'
+  const hasActiveFilters = Boolean(q.trim()) || hasExtraFilters
+  const emptyState = getOrderTabEmptyState(tab, hasActiveFilters)
   const showNeedsActionHints = tab === 'needs_action'
 
   const updateSearchParams = (mutate: (params: URLSearchParams) => void) => {
@@ -164,7 +218,60 @@ export function AdminOrdersPage() {
 
   useEffect(() => {
     setSelectedIds(new Set())
-  }, [tab, q, page])
+  }, [tab, q, page, paymentMethod, paymentStatus, sort])
+
+  const setFilterParam = (key: string, value: string) => {
+    updateSearchParams((params) => {
+      if (value === 'all' || (key === 'sort' && value === 'newest')) {
+        params.delete(key)
+      } else {
+        params.set(key, value)
+      }
+      params.delete('page')
+    })
+  }
+
+  const resetFilters = () => {
+    setSearch('')
+    updateSearchParams((params) => {
+      params.delete('q')
+      params.delete('paymentMethod')
+      params.delete('paymentStatus')
+      params.delete('sort')
+      params.delete('page')
+    })
+  }
+
+  const filterChips = [
+    q.trim()
+      ? {
+          key: 'q',
+          label: `Tìm: "${q.trim()}"`,
+          onRemove: () => setSearch(''),
+        }
+      : null,
+    paymentMethod !== 'all'
+      ? {
+          key: 'paymentMethod',
+          label: PAYMENT_METHOD_LABELS[paymentMethod],
+          onRemove: () => setFilterParam('paymentMethod', 'all'),
+        }
+      : null,
+    paymentStatus !== 'all'
+      ? {
+          key: 'paymentStatus',
+          label: PAYMENT_STATUS_LABELS[paymentStatus],
+          onRemove: () => setFilterParam('paymentStatus', 'all'),
+        }
+      : null,
+    sort !== 'newest'
+      ? {
+          key: 'sort',
+          label: ORDER_SORT_OPTIONS.find((option) => option.value === sort)?.label ?? sort,
+          onRemove: () => setFilterParam('sort', 'newest'),
+        }
+      : null,
+  ].filter(Boolean) as Array<{ key: string; label: string; onRemove: () => void }>
 
   const setTab = (nextTab: OrderTab) => {
     updateSearchParams((params) => {
@@ -300,47 +407,75 @@ export function AdminOrdersPage() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">Đơn hàng</h1>
-          <p className="text-sm text-muted-foreground">
-            {total > 0
-              ? `Hiển thị ${formatNumber(rangeStart)}–${formatNumber(rangeEnd)} / ${formatNumber(total)} đơn`
-              : 'Xác nhận → đóng gói → in phiếu → bàn giao vận chuyển'}
-          </p>
-        </div>
-        <div className="relative min-w-[220px] flex-1 sm:max-w-sm">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value)
-              updateSearchParams((params) => params.delete('page'))
-            }}
-            placeholder="Tìm mã đơn, SĐT, tên, sản phẩm…"
-            className="pl-9"
-          />
-        </div>
-      </div>
+    <div className="space-y-5">
+      <AdminPageHeader
+        title="Đơn hàng"
+        description={
+          total > 0
+            ? `Hiển thị ${formatNumber(rangeStart)}–${formatNumber(rangeEnd)} / ${formatNumber(total)} đơn`
+            : 'Xác nhận → đóng gói → in phiếu → bàn giao vận chuyển'
+        }
+      />
 
-      <div className="sticky top-14 z-30 -mx-4 space-y-3 border-b border-border/80 bg-background/95 px-4 py-3 backdrop-blur-sm lg:-mx-6 lg:px-6">
-        <div className="flex flex-wrap gap-2">
-          {ORDER_TABS.map((value) => (
-            <Button
-              key={value}
-              size="sm"
-              variant={tab === value ? 'default' : 'outline'}
-              onClick={() => setTab(value)}
-            >
-              {ORDER_TAB_LABELS[value]}
-            </Button>
-          ))}
-        </div>
+      <AdminListToolbar
+        sticky
+        search={search}
+        onSearchChange={(value) => {
+          setSearch(value)
+          updateSearchParams((params) => params.delete('page'))
+        }}
+        searchPlaceholder="Tìm mã đơn, SĐT, tên, sản phẩm…"
+        hasActiveFilters={hasActiveFilters}
+        onClearFilters={resetFilters}
+        onRefresh={() => refetch()}
+        isRefreshing={isFetching}
+        activeFilterCount={filterChips.filter((chip) => chip.key !== 'q').length}
+        footer={
+          <div className="space-y-2">
+            <div className="flex flex-wrap gap-2">
+              {ORDER_TABS.map((value) => (
+                <Button
+                  key={value}
+                  size="sm"
+                  variant={tab === value ? 'default' : 'outline'}
+                  onClick={() => setTab(value)}
+                >
+                  {ORDER_TAB_LABELS[value]}
+                </Button>
+              ))}
+            </div>
+            <p className="text-sm text-muted-foreground">{ORDER_TAB_DESCRIPTIONS[tab]}</p>
+            <AdminActiveFilterChips chips={filterChips} onClearAll={hasActiveFilters ? resetFilters : undefined} />
+          </div>
+        }
+        filters={
+          <>
+            <AdminFilterField label="Phương thức thanh toán">
+              <AdminFilterSelect
+                value={paymentMethod}
+                onValueChange={(value) => setFilterParam('paymentMethod', value)}
+                options={PAYMENT_METHOD_FILTERS}
+              />
+            </AdminFilterField>
+            <AdminFilterField label="Trạng thái thanh toán">
+              <AdminFilterSelect
+                value={paymentStatus}
+                onValueChange={(value) => setFilterParam('paymentStatus', value)}
+                options={PAYMENT_STATUS_FILTERS}
+              />
+            </AdminFilterField>
+            <AdminFilterField label="Sắp xếp">
+              <AdminFilterSelect
+                value={sort}
+                onValueChange={(value) => setFilterParam('sort', value)}
+                options={ORDER_SORT_OPTIONS}
+              />
+            </AdminFilterField>
+          </>
+        }
+      />
 
-        <p className="text-sm text-muted-foreground">{ORDER_TAB_DESCRIPTIONS[tab]}</p>
-
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border/70 bg-muted/15 px-3 py-2.5">
           <Button
             variant="outline"
             size="sm"
@@ -366,21 +501,20 @@ export function AdminOrdersPage() {
             <Printer className="size-4" />
             In đơn chưa in phiếu ({unprintedPackingOrders.length})
           </Button>
-        </div>
       </div>
 
       {isLoading ? (
         <OrderListSkeleton />
       ) : orders.length === 0 ? (
-        <Card>
+        <AdminDataPanel>
           <OrderListEmptyState title={emptyState.title} hint={emptyState.hint} />
-        </Card>
+        </AdminDataPanel>
       ) : (
         <>
-          <Card className="hidden p-0 md:block">
+          <AdminDataPanel className="hidden md:block">
             <Table>
-              <TableHeader>
-                <TableRow>
+              <TableHeader className="bg-muted/30">
+                <TableRow className="hover:bg-transparent">
                   <TableHead className="w-10">
                     <Checkbox
                       checked={allVisibleSelected ? true : someVisibleSelected ? 'indeterminate' : false}
@@ -538,7 +672,7 @@ export function AdminOrdersPage() {
                 })}
               </TableBody>
             </Table>
-          </Card>
+          </AdminDataPanel>
 
           <div className="space-y-3 md:hidden">
             {orders.map((order) => {

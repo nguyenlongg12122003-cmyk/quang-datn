@@ -74,10 +74,15 @@ export function getOrderTabEmptyState(
         title: 'Không có đơn đang giao',
         hint: 'Đơn sẽ hiện ở đây sau khi bàn giao vận chuyển.',
       }
-    case 'return_pending':
+    case 'delivered':
       return {
-        title: 'Không có yêu cầu hoàn trả',
-        hint: 'Khách chưa gửi yêu cầu hoàn trả nào đang chờ duyệt.',
+        title: 'Không có đơn đã giao',
+        hint: 'Đơn hoàn tất sẽ xuất hiện ở đây sau khi xác nhận đã giao.',
+      }
+    case 'cancelled':
+      return {
+        title: 'Không có đơn đã hủy',
+        hint: 'Đơn bị hủy sẽ xuất hiện ở đây.',
       }
     default:
       return {

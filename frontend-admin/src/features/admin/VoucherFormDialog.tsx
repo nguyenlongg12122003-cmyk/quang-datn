@@ -20,7 +20,8 @@ import {
 } from '@/components/ui/select'
 import { useSaveVoucher } from '@/features/admin/api'
 import { getErrorMessage } from '@/lib/api/axios'
-import type { Voucher, VoucherType } from '@/types'
+import type { Voucher, VoucherStatus, VoucherType } from '@/types'
+import { getEffectiveVoucherStatus } from '@/lib/voucher'
 
 interface VoucherFormDialogProps {
   open: boolean
@@ -38,11 +39,12 @@ interface FormState {
   startDate: string
   endDate: string
   description: string
+  status: VoucherStatus
 }
 
 const EMPTY: FormState = {
   code: '', type: 'fixed', value: '', minOrderValue: '0', maxDiscount: '',
-  usageLimit: '100', startDate: '', endDate: '', description: '',
+  usageLimit: '100', startDate: '', endDate: '', description: '', status: 'active',
 }
 
 function toLocalInput(iso?: string): string {
@@ -64,6 +66,7 @@ function buildInitialState(voucher: Voucher | null): FormState {
     startDate: toLocalInput(voucher.startDate),
     endDate: toLocalInput(voucher.endDate),
     description: voucher.description ?? '',
+    status: voucher.status ?? 'active',
   }
 }
 
@@ -101,11 +104,12 @@ function VoucherFormBody({ voucher, onClose }: VoucherFormBodyProps) {
       type: form.type,
       value: Number(form.value),
       minOrderValue: Number(form.minOrderValue),
-      maxDiscount: form.maxDiscount ? Number(form.maxDiscount) : null,
+      maxDiscount: form.type === 'percentage' && form.maxDiscount ? Number(form.maxDiscount) : null,
       usageLimit: Number(form.usageLimit),
       startDate: new Date(form.startDate).toISOString(),
       endDate: new Date(form.endDate).toISOString(),
       description: form.description,
+      ...(voucher ? { status: form.status } : {}),
     }
     saveVoucher.mutate(
       { id: voucher?.id, payload },
@@ -126,7 +130,13 @@ function VoucherFormBody({ voucher, onClose }: VoucherFormBodyProps) {
             <Input value={form.code} onChange={(e) => set({ code: e.target.value.toUpperCase() })} disabled={Boolean(voucher)} />
           </Field>
           <Field label="Loại">
-            <Select value={form.type} onValueChange={(v) => set({ type: v as VoucherType })}>
+            <Select
+              value={form.type}
+              onValueChange={(v) => {
+                const type = v as VoucherType
+                set(type === 'fixed' ? { type, maxDiscount: '' } : { type })
+              }}
+            >
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="fixed">Giảm số tiền</SelectItem>
@@ -140,9 +150,27 @@ function VoucherFormBody({ voucher, onClose }: VoucherFormBodyProps) {
           <Field label="Đơn tối thiểu (đ)">
             <Input type="number" value={form.minOrderValue} onChange={(e) => set({ minOrderValue: e.target.value })} />
           </Field>
-          <Field label="Giảm tối đa (đ, tùy chọn)">
-            <Input type="number" value={form.maxDiscount} onChange={(e) => set({ maxDiscount: e.target.value })} />
-          </Field>
+          {form.type === 'percentage' ? (
+            <Field label="Giảm tối đa (đ, tùy chọn)">
+              <Input type="number" value={form.maxDiscount} onChange={(e) => set({ maxDiscount: e.target.value })} />
+            </Field>
+          ) : null}
+          {voucher ? (
+            <Field label="Trạng thái">
+              <Select value={form.status} onValueChange={(v) => set({ status: v as VoucherStatus })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Đang hoạt động</SelectItem>
+                  <SelectItem value="inactive">Tạm tắt</SelectItem>
+                  <SelectItem value="expired">Đánh dấu hết hạn</SelectItem>
+                </SelectContent>
+              </Select>
+              {getEffectiveVoucherStatus({ ...voucher, endDate: form.endDate ? new Date(form.endDate).toISOString() : voucher.endDate, status: form.status }) === 'expired' &&
+              form.status !== 'expired' ? (
+                <p className="text-xs text-muted-foreground">Voucher sẽ hiển thị hết hạn vì ngày kết thúc đã qua.</p>
+              ) : null}
+            </Field>
+          ) : null}
           <Field label="Giới hạn lượt dùng">
             <Input type="number" value={form.usageLimit} onChange={(e) => set({ usageLimit: e.target.value })} />
           </Field>

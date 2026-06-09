@@ -1,19 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { AlertCircle, Pencil, Plus, RefreshCw, Search, Trash2 } from 'lucide-react'
+import { AlertCircle, Package, Pencil, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { AdminActiveFilterChips } from '@/components/admin/AdminActiveFilterChips'
+import { AdminDataPanel } from '@/components/admin/AdminDataPanel'
+import { AdminFilterField } from '@/components/admin/AdminFilterField'
+import { AdminFilterSelect } from '@/components/admin/AdminFilterSelect'
+import { AdminListToolbar } from '@/components/admin/AdminListToolbar'
+import { AdminPageHeader } from '@/components/admin/AdminPageHeader'
+import { AdminTableSkeleton } from '@/components/admin/AdminTableSkeleton'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Card } from '@/components/ui/card'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import {
   Table,
   TableBody,
@@ -23,6 +21,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
+import { EmptyState } from '@/components/common/EmptyState'
 import { Pagination } from '@/components/common/Pagination'
 import { useBrands, useCategories, useProducts } from '@/features/catalog/api'
 import { useDeleteProduct } from '@/features/admin/api'
@@ -88,21 +87,22 @@ export function AdminProductsPage() {
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   const categoryMap = useMemo(
-    () => Object.fromEntries(categories.map((c) => [c.id, c.name])),
+    () => Object.fromEntries(categories.map((category) => [category.id, category.name])),
     [categories],
   )
   const brandMap = useMemo(
-    () => Object.fromEntries(brands.map((b) => [b.id, b.name])),
+    () => Object.fromEntries(brands.map((brand) => [brand.id, brand.name])),
     [brands],
   )
 
   const [deleting, setDeleting] = useState<Product | null>(null)
 
-  const hasFilters =
+  const hasActiveFilters =
     Boolean(debouncedSearch.trim()) ||
     status !== 'all' ||
     categoryId !== 'all' ||
-    brandId !== 'all'
+    brandId !== 'all' ||
+    sortBy !== 'newest'
 
   const rangeStart = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
   const rangeEnd = Math.min(page * PAGE_SIZE, total)
@@ -122,134 +122,148 @@ export function AdminProductsPage() {
     setPage(1)
   }
 
-  const openCreate = () => navigate('/products/new')
+  const filterChips = [
+    debouncedSearch.trim()
+      ? { key: 'q', label: `Tìm: "${debouncedSearch.trim()}"`, onRemove: () => setSearch('') }
+      : null,
+    status !== 'all'
+      ? {
+          key: 'status',
+          label: STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status,
+          onRemove: () => setStatus('all'),
+        }
+      : null,
+    categoryId !== 'all'
+      ? {
+          key: 'category',
+          label: categoryMap[categoryId] ?? 'Danh mục',
+          onRemove: () => setCategoryId('all'),
+        }
+      : null,
+    brandId !== 'all'
+      ? {
+          key: 'brand',
+          label: brandMap[brandId] ?? 'Thương hiệu',
+          onRemove: () => setBrandId('all'),
+        }
+      : null,
+    sortBy !== 'newest'
+      ? {
+          key: 'sort',
+          label: SORT_OPTIONS.find((option) => option.value === sortBy)?.label ?? sortBy,
+          onRemove: () => setSortBy('newest'),
+        }
+      : null,
+  ].filter(Boolean) as Array<{ key: string; label: string; onRemove: () => void }>
 
+  const openCreate = () => navigate('/products/new')
   const openEdit = (product: Product) => navigate(`/products/${product.id}/edit`)
 
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">Sản phẩm</h1>
-          <p className="text-sm text-muted-foreground">
-            {total > 0
-              ? `Hiển thị ${formatNumber(rangeStart)}–${formatNumber(rangeEnd)} / ${formatNumber(total)} sản phẩm`
-              : 'Quản lý danh mục hàng hóa cửa hàng'}
-          </p>
-        </div>
-        <Button className="gap-2" onClick={openCreate}>
-          <Plus className="size-4" /> Thêm sản phẩm
-        </Button>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value)
-              setPage(1)
-            }}
-            placeholder="Tìm tên, SKU, mô tả, tags…"
-            className="pl-9"
-          />
-        </div>
-
-        <Select
-          value={status}
-          onValueChange={(v) => {
-            setStatus(v as ProductStatus | 'all')
-            setPage(1)
-          }}
-        >
-          <SelectTrigger className="w-[150px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {STATUS_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={categoryId}
-          onValueChange={(v) => {
-            setCategoryId(v)
-            setPage(1)
-          }}
-        >
-          <SelectTrigger className="w-[160px]">
-            <SelectValue placeholder="Danh mục" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tất cả danh mục</SelectItem>
-            {categories.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
-                {c.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={brandId}
-          onValueChange={(v) => {
-            setBrandId(v)
-            setPage(1)
-          }}
-        >
-          <SelectTrigger className="w-[160px]">
-            <SelectValue placeholder="Thương hiệu" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tất cả thương hiệu</SelectItem>
-            {brands.map((b) => (
-              <SelectItem key={b.id} value={b.id}>
-                {b.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={sortBy}
-          onValueChange={(v) => {
-            setSortBy(v as NonNullable<ProductQuery['sortBy']>)
-            setPage(1)
-          }}
-        >
-          <SelectTrigger className="w-[150px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {SORT_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {hasFilters ? (
-          <Button variant="ghost" size="sm" onClick={resetFilters}>
-            Xóa bộ lọc
-          </Button>
+  const renderProductBadges = (product: Product) => {
+    const flashActive = isFlashSaleActive(product)
+    return (
+      <div className="flex flex-wrap gap-1">
+        {flashActive ? (
+          <Badge variant="destructive" className="text-[10px]">
+            Flash Sale
+          </Badge>
         ) : null}
-
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => refetch()}
-          disabled={isFetching}
-          aria-label="Làm mới danh sách"
-        >
-          <RefreshCw className={isFetching ? 'size-4 animate-spin' : 'size-4'} />
-        </Button>
+        {product.isCustomizable ? (
+          <Badge variant="outline" className="text-[10px]">
+            Tùy chỉnh
+          </Badge>
+        ) : null}
+        {(product.wholesalePrice?.length ?? 0) > 0 ? (
+          <Badge variant="secondary" className="text-[10px]">
+            Giá sỉ
+          </Badge>
+        ) : null}
       </div>
+    )
+  }
+
+  return (
+    <div className="space-y-5">
+      <AdminPageHeader
+        title="Sản phẩm"
+        description={
+          total > 0
+            ? `Hiển thị ${formatNumber(rangeStart)}–${formatNumber(rangeEnd)} / ${formatNumber(total)} sản phẩm`
+            : 'Quản lý danh mục hàng hóa cửa hàng'
+        }
+        action={
+          <Button className="gap-2" onClick={openCreate}>
+            <Plus className="size-4" /> Thêm sản phẩm
+          </Button>
+        }
+      />
+
+      <AdminListToolbar
+        search={search}
+        onSearchChange={(value) => {
+          setSearch(value)
+          setPage(1)
+        }}
+        searchPlaceholder="Tìm tên, SKU, mô tả, tags…"
+        hasActiveFilters={hasActiveFilters}
+        onClearFilters={resetFilters}
+        onRefresh={() => refetch()}
+        isRefreshing={isFetching}
+        activeFilterCount={filterChips.filter((chip) => chip.key !== 'q').length}
+        footer={
+          <AdminActiveFilterChips chips={filterChips} onClearAll={hasActiveFilters ? resetFilters : undefined} />
+        }
+        filters={
+          <>
+            <AdminFilterField label="Trạng thái">
+              <AdminFilterSelect
+                value={status}
+                onValueChange={(value) => {
+                  setStatus(value as ProductStatus | 'all')
+                  setPage(1)
+                }}
+                options={STATUS_OPTIONS}
+              />
+            </AdminFilterField>
+            <AdminFilterField label="Danh mục">
+              <AdminFilterSelect
+                value={categoryId}
+                onValueChange={(value) => {
+                  setCategoryId(value)
+                  setPage(1)
+                }}
+                options={[
+                  { value: 'all', label: 'Tất cả danh mục' },
+                  ...categories.map((category) => ({ value: category.id, label: category.name })),
+                ]}
+              />
+            </AdminFilterField>
+            <AdminFilterField label="Thương hiệu">
+              <AdminFilterSelect
+                value={brandId}
+                onValueChange={(value) => {
+                  setBrandId(value)
+                  setPage(1)
+                }}
+                options={[
+                  { value: 'all', label: 'Tất cả thương hiệu' },
+                  ...brands.map((brand) => ({ value: brand.id, label: brand.name })),
+                ]}
+              />
+            </AdminFilterField>
+            <AdminFilterField label="Sắp xếp">
+              <AdminFilterSelect
+                value={sortBy}
+                onValueChange={(value) => {
+                  setSortBy(value as NonNullable<ProductQuery['sortBy']>)
+                  setPage(1)
+                }}
+                options={SORT_OPTIONS}
+              />
+            </AdminFilterField>
+          </>
+        }
+      />
 
       {isError ? (
         <Alert variant="destructive">
@@ -264,146 +278,190 @@ export function AdminProductsPage() {
         </Alert>
       ) : null}
 
-      <Card className="p-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="min-w-[240px]">Sản phẩm</TableHead>
-              <TableHead>SKU</TableHead>
-              <TableHead>Danh mục</TableHead>
-              <TableHead>Thương hiệu</TableHead>
-              <TableHead>Giá</TableHead>
-              <TableHead>Tồn</TableHead>
-              <TableHead>Đã bán</TableHead>
-              <TableHead>Trạng thái</TableHead>
-              <TableHead className="text-right">Thao tác</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={9} className="py-10 text-center text-muted-foreground">
-                  Đang tải…
-                </TableCell>
-              </TableRow>
-            ) : products.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={9} className="py-10 text-center">
-                  <p className="text-muted-foreground">
-                    {hasFilters ? 'Không tìm thấy sản phẩm phù hợp bộ lọc.' : 'Chưa có sản phẩm nào.'}
-                  </p>
-                  {hasFilters ? (
-                    <Button variant="link" className="mt-1" onClick={resetFilters}>
-                      Xóa bộ lọc
-                    </Button>
-                  ) : (
-                    <Button variant="link" className="mt-1 gap-1" onClick={openCreate}>
-                      <Plus className="size-4" /> Thêm sản phẩm đầu tiên
-                    </Button>
-                  )}
-                </TableCell>
-              </TableRow>
+      {isLoading ? (
+        <AdminTableSkeleton rows={6} columns={6} />
+      ) : products.length === 0 ? (
+        <EmptyState
+          icon={Package}
+          title={hasActiveFilters ? 'Không tìm thấy sản phẩm phù hợp' : 'Chưa có sản phẩm'}
+          description={
+            hasActiveFilters
+              ? 'Thử đổi từ khóa hoặc xóa bộ lọc.'
+              : 'Thêm sản phẩm đầu tiên để bắt đầu bán hàng.'
+          }
+          action={
+            hasActiveFilters ? (
+              <Button variant="outline" onClick={resetFilters}>
+                Xóa bộ lọc
+              </Button>
             ) : (
-              products.map((p) => {
-                const stockStatus = getStockStatus(p.stock)
-                const flashActive = isFlashSaleActive(p)
+              <Button onClick={openCreate}>
+                <Plus className="size-4" /> Thêm sản phẩm
+              </Button>
+            )
+          }
+        />
+      ) : (
+        <>
+          <AdminDataPanel className="hidden md:block">
+            <Table>
+              <TableHeader className="bg-muted/30">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="min-w-[240px]">Sản phẩm</TableHead>
+                  <TableHead>SKU</TableHead>
+                  <TableHead>Danh mục</TableHead>
+                  <TableHead>Thương hiệu</TableHead>
+                  <TableHead>Giá</TableHead>
+                  <TableHead>Tồn</TableHead>
+                  <TableHead>Đã bán</TableHead>
+                  <TableHead>Trạng thái</TableHead>
+                  <TableHead className="text-right">Thao tác</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {products.map((product) => {
+                  const stockStatus = getStockStatus(product.stock)
 
-                return (
-                  <TableRow key={p.id}>
-                    <TableCell>
-                      <div className="flex items-start gap-2.5">
-                        {p.images?.[0]?.url ? (
-                          <img
-                            src={p.images[0].url}
-                            alt={p.name}
-                            className="size-11 shrink-0 rounded-md object-cover"
-                          />
-                        ) : (
-                          <div className="size-11 shrink-0 rounded-md bg-muted" />
-                        )}
-                        <div className="min-w-0 space-y-1">
-                          <p className="line-clamp-2 text-sm font-medium leading-snug">{p.name}</p>
-                          <div className="flex flex-wrap gap-1">
-                            {flashActive ? (
-                              <Badge variant="destructive" className="text-[10px]">
-                                Flash Sale
-                              </Badge>
-                            ) : null}
-                            {p.isCustomizable ? (
-                              <Badge variant="outline" className="text-[10px]">
-                                Tùy chỉnh
-                              </Badge>
-                            ) : null}
-                            {(p.wholesalePrice?.length ?? 0) > 0 ? (
-                              <Badge variant="secondary" className="text-[10px]">
-                                Giá sỉ
-                              </Badge>
-                            ) : null}
+                  return (
+                    <TableRow key={product.id}>
+                      <TableCell>
+                        <div className="flex items-start gap-3">
+                          {product.images?.[0]?.url ? (
+                            <img
+                              src={product.images[0].url}
+                              alt={product.name}
+                              className="size-11 shrink-0 rounded-md border border-border/60 object-cover"
+                            />
+                          ) : (
+                            <div className="size-11 shrink-0 rounded-md border border-dashed border-border bg-muted/50" />
+                          )}
+                          <div className="min-w-0 space-y-1">
+                            <p className="line-clamp-2 text-sm font-medium leading-snug">{product.name}</p>
+                            {renderProductBadges(product)}
                           </div>
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-mono text-xs text-muted-foreground">{p.sku}</TableCell>
-                    <TableCell className="text-sm">{categoryMap[p.categoryId] ?? '—'}</TableCell>
-                    <TableCell className="text-sm">{brandMap[p.brandId] ?? '—'}</TableCell>
-                    <TableCell>
-                      <div className="text-sm font-medium">{formatCurrency(p.price)}</div>
-                      {p.originalPrice > p.price ? (
-                        <div className="text-xs text-muted-foreground line-through">
-                          {formatCurrency(p.originalPrice)}
-                        </div>
-                      ) : null}
-                    </TableCell>
-                    <TableCell>
-                      <span
-                        className={
-                          stockStatus === 'out'
-                            ? 'font-semibold text-destructive'
-                            : stockStatus === 'low'
-                              ? 'font-medium text-amber-600'
-                              : ''
-                        }
-                      >
-                        {formatNumber(p.stock)}
-                      </span>
-                      {stockStatus !== 'ok' ? (
-                        <div className="text-[11px] text-muted-foreground">
-                          {STOCK_STATUS_LABELS[stockStatus]}
-                        </div>
-                      ) : null}
-                    </TableCell>
-                    <TableCell>{formatNumber(p.sold ?? 0)}</TableCell>
-                    <TableCell>
-                      <Badge variant={p.status === 'active' ? 'default' : 'secondary'}>
-                        {STATUS_LABELS[p.status]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => openEdit(p)}
-                        aria-label={`Sửa ${p.name}`}
-                      >
+                      </TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">{product.sku}</TableCell>
+                      <TableCell className="text-sm">{categoryMap[product.categoryId] ?? '—'}</TableCell>
+                      <TableCell className="text-sm">{brandMap[product.brandId] ?? '—'}</TableCell>
+                      <TableCell>
+                        <div className="text-sm font-medium">{formatCurrency(product.price)}</div>
+                        {product.originalPrice > product.price ? (
+                          <div className="text-xs text-muted-foreground line-through">
+                            {formatCurrency(product.originalPrice)}
+                          </div>
+                        ) : null}
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={
+                            stockStatus === 'out'
+                              ? 'font-semibold text-destructive'
+                              : stockStatus === 'low'
+                                ? 'font-medium text-amber-600'
+                                : ''
+                          }
+                        >
+                          {formatNumber(product.stock)}
+                        </span>
+                        {stockStatus !== 'ok' ? (
+                          <div className="text-[11px] text-muted-foreground">
+                            {STOCK_STATUS_LABELS[stockStatus]}
+                          </div>
+                        ) : null}
+                      </TableCell>
+                      <TableCell>{formatNumber(product.sold ?? 0)}</TableCell>
+                      <TableCell>
+                        <Badge variant={product.status === 'active' ? 'default' : 'secondary'}>
+                          {STATUS_LABELS[product.status]}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openEdit(product)}
+                          aria-label={`Sửa ${product.name}`}
+                        >
+                          <Pencil className="size-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive"
+                          onClick={() => setDeleting(product)}
+                          aria-label={`Xóa ${product.name}`}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </AdminDataPanel>
+
+          <div className="space-y-3 md:hidden">
+            {products.map((product) => {
+              const stockStatus = getStockStatus(product.stock)
+
+              return (
+                <AdminDataPanel key={product.id} className="p-4">
+                  <div className="flex gap-3">
+                    {product.images?.[0]?.url ? (
+                      <img
+                        src={product.images[0].url}
+                        alt={product.name}
+                        className="size-14 shrink-0 rounded-md border border-border/60 object-cover"
+                      />
+                    ) : (
+                      <div className="size-14 shrink-0 rounded-md border border-dashed border-border bg-muted/50" />
+                    )}
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <p className="line-clamp-2 font-medium leading-snug">{product.name}</p>
+                      <p className="font-mono text-xs text-muted-foreground">{product.sku}</p>
+                      {renderProductBadges(product)}
+                    </div>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Giá</p>
+                      <p className="font-medium">{formatCurrency(product.price)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Tồn kho</p>
+                      <p className="font-medium">{formatNumber(product.stock)}</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between border-t border-border/60 pt-3">
+                    <Badge variant={product.status === 'active' ? 'default' : 'secondary'}>
+                      {STATUS_LABELS[product.status]}
+                    </Badge>
+                    {stockStatus !== 'ok' ? (
+                      <span className="text-xs text-muted-foreground">{STOCK_STATUS_LABELS[stockStatus]}</span>
+                    ) : null}
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => openEdit(product)} aria-label="Sửa">
                         <Pencil className="size-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
                         className="text-destructive"
-                        onClick={() => setDeleting(p)}
-                        aria-label={`Xóa ${p.name}`}
+                        onClick={() => setDeleting(product)}
+                        aria-label="Xóa"
                       >
                         <Trash2 className="size-4" />
                       </Button>
-                    </TableCell>
-                  </TableRow>
-                )
-              })
-            )}
-          </TableBody>
-        </Table>
-      </Card>
+                    </div>
+                  </div>
+                </AdminDataPanel>
+              )
+            })}
+          </div>
+        </>
+      )}
 
       <Pagination page={page} pageCount={pageCount} onPageChange={setPage} />
 

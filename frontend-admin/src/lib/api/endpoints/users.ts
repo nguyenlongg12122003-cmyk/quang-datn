@@ -4,6 +4,7 @@ import type { User, UserRole, UserStatus } from '@/types'
 export interface AdminUserQuery {
   q?: string
   role?: UserRole
+  status?: UserStatus
 }
 
 export const userApi = {

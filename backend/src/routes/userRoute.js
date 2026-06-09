@@ -133,7 +133,7 @@ router.patch('/addresses/:id/default', authMiddleware, async (req, res, next) =>
 
 router.get('/', authMiddleware, adminMiddleware, async (req, res, next) => {
   try {
-    const { q, role } = req.query;
+    const { q, role, status } = req.query;
     const pool = await getPool();
     const request = pool.request();
     const conditions = [];
@@ -142,9 +142,13 @@ router.get('/', authMiddleware, adminMiddleware, async (req, res, next) => {
       request.input('role', sql.NVarChar, role);
       conditions.push('[role] = @role');
     }
+    if (status && status !== 'all') {
+      request.input('status', sql.NVarChar, status);
+      conditions.push('[status] = @status');
+    }
     if (q) {
       request.input('q', sql.NVarChar, `%${q}%`);
-      conditions.push('(name LIKE @q OR email LIKE @q)');
+      conditions.push('(name LIKE @q OR email LIKE @q OR phone LIKE @q)');
     }
 
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';

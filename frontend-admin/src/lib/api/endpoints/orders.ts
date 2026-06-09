@@ -1,5 +1,7 @@
 import { api } from '@/lib/api/axios'
-import type { Order, OrderStatus, ShippingCarrier } from '@/types'
+import type { Order, OrderStatus, PaymentMethod, PaymentStatus, ShippingCarrier } from '@/types'
+
+export type OrderSort = 'newest' | 'oldest' | 'total_desc' | 'total_asc'
 
 export type OrderTab =
   | 'all'
@@ -7,13 +9,17 @@ export type OrderTab =
   | 'needs_action'
   | 'packing'
   | 'shipping'
-  | 'return_pending'
+  | 'delivered'
+  | 'cancelled'
 
 export interface AdminOrderQuery {
   tab?: OrderTab
   status?: OrderStatus | 'all'
   q?: string
   hasReturn?: 'pending'
+  paymentMethod?: PaymentMethod | 'all'
+  paymentStatus?: PaymentStatus | 'all'
+  sort?: OrderSort
   page?: number
   limit?: number
 }
