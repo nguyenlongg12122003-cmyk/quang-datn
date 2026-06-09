@@ -9,7 +9,7 @@ interface PaginationProps {
   className?: string
 }
 
-/** Client-side pagination control (backend has no server pagination). */
+/** Pagination control for client- or server-side paging. */
 export function Pagination({ page, pageCount, onPageChange, className }: PaginationProps) {
   if (pageCount <= 1) return null
 

@@ -19,6 +19,8 @@ interface ImageUploaderProps {
   previewClassName?: string
   /** Helper text under the drop zone. */
   hint?: string
+  /** Compact tile for gallery add slots. */
+  compact?: boolean
 }
 
 export function ImageUploader({
@@ -28,6 +30,7 @@ export function ImageUploader({
   className,
   previewClassName,
   hint,
+  compact,
 }: ImageUploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const inputId = useId()
@@ -128,6 +131,23 @@ export function ImageUploader({
             </Button>
           </div>
         </div>
+      ) : compact ? (
+        <button
+          type="button"
+          onClick={openPicker}
+          disabled={isBusy}
+          className={cn(
+            'flex size-12 items-center justify-center rounded-full border border-dashed border-input text-muted-foreground transition-colors',
+            'hover:border-ring hover:bg-accent/40 disabled:cursor-not-allowed disabled:opacity-60',
+          )}
+          aria-label="Thêm ảnh"
+        >
+          {uploading ? (
+            <Loader2 className="size-5 animate-spin" />
+          ) : (
+            <ImageIcon className="size-5" />
+          )}
+        </button>
       ) : (
         <button
           type="button"

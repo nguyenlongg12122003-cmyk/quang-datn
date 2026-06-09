@@ -16,7 +16,9 @@ export function useRevenueReport() {
 // ── Products ─────────────────────────────────────────────────────────────────
 function useInvalidateProducts() {
   const queryClient = useQueryClient()
-  return () => queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
+  return () => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
+  }
 }
 
 export function useCreateProduct() {

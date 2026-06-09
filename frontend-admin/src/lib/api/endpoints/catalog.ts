@@ -44,6 +44,8 @@ export const catalogApi = {
     api
       .get<ProductListResponse>('/catalog/products', { params: query })
       .then((r) => r.data),
+  getProduct: (idOrSlug: string) =>
+    api.get<Product>(`/catalog/products/${idOrSlug}`).then((r) => r.data),
   createProduct: (payload: Partial<Product>) =>
     api
       .post<{ id: string; message: string }>('/catalog/products', payload)

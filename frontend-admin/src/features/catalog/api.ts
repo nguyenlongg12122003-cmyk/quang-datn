@@ -24,3 +24,11 @@ export function useProducts(query: ProductQuery) {
     queryFn: () => catalogApi.listProducts(query),
   })
 }
+
+export function useProduct(id: string, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: queryKeys.products.detail(id),
+    queryFn: () => catalogApi.getProduct(id),
+    enabled: Boolean(id) && (options?.enabled ?? true),
+  })
+}

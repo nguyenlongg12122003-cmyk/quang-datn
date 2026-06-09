@@ -11,6 +11,7 @@ import { NotFoundPage } from '@/pages/NotFoundPage'
 
 const AdminDashboardPage = lazy(() => import('@/pages/admin/AdminDashboardPage').then((m) => ({ default: m.AdminDashboardPage })))
 const AdminProductsPage = lazy(() => import('@/pages/admin/AdminProductsPage').then((m) => ({ default: m.AdminProductsPage })))
+const AdminProductFormPage = lazy(() => import('@/pages/admin/AdminProductFormPage').then((m) => ({ default: m.AdminProductFormPage })))
 const AdminCategoriesPage = lazy(() => import('@/pages/admin/AdminCategoriesPage').then((m) => ({ default: m.AdminCategoriesPage })))
 const AdminBrandsPage = lazy(() => import('@/pages/admin/AdminBrandsPage').then((m) => ({ default: m.AdminBrandsPage })))
 const AdminOrdersPage = lazy(() => import('@/pages/admin/AdminOrdersPage').then((m) => ({ default: m.AdminOrdersPage })))
@@ -40,6 +41,8 @@ function AppRoutes() {
           <Route element={<AdminLayout />}>
             <Route index element={<AdminDashboardPage />} />
             <Route path="products" element={<AdminProductsPage />} />
+            <Route path="products/new" element={<AdminProductFormPage />} />
+            <Route path="products/:id/edit" element={<AdminProductFormPage />} />
             <Route path="categories" element={<AdminCategoriesPage />} />
             <Route path="brands" element={<AdminBrandsPage />} />
             <Route path="orders" element={<AdminOrdersPage />} />
