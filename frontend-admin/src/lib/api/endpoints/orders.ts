@@ -1,20 +1,52 @@
 import { api } from '@/lib/api/axios'
-import type { Order, OrderStatus } from '@/types'
+import type { Order, OrderStatus, ShippingCarrier } from '@/types'
+
+export type OrderTab =
+  | 'all'
+  | 'pending'
+  | 'needs_action'
+  | 'packing'
+  | 'shipping'
+  | 'return_pending'
 
 export interface AdminOrderQuery {
+  tab?: OrderTab
   status?: OrderStatus | 'all'
   q?: string
+  hasReturn?: 'pending'
+  page?: number
+  limit?: number
+}
+
+export interface OrderListResponse {
+  items: Order[]
+  total: number
+}
+
+export interface UpdateOrderStatusPayload {
+  id: string
+  status: OrderStatus
+  note?: string
+  shippingCarrier?: ShippingCarrier
+  trackingNumber?: string
 }
 
 export const orderApi = {
   list: (query: AdminOrderQuery = {}) =>
-    api.get<Order[]>('/orders', { params: query }).then((r) => r.data),
-  updateStatus: (id: string, status: OrderStatus, note?: string) =>
+    api.get<OrderListResponse>('/orders', { params: query }).then((r) => r.data),
+  getById: (id: string) => api.get<Order>(`/orders/${id}`).then((r) => r.data),
+  updateStatus: (payload: UpdateOrderStatusPayload) =>
     api
-      .patch<{ message: string; paymentStatus?: string }>(`/orders/${id}/status`, {
-        status,
-        note,
+      .patch<{ message: string; paymentStatus?: string }>(`/orders/${payload.id}/status`, {
+        status: payload.status,
+        note: payload.note,
+        shippingCarrier: payload.shippingCarrier,
+        trackingNumber: payload.trackingNumber,
       })
+      .then((r) => r.data),
+  markPackingSlipPrinted: (id: string) =>
+    api
+      .post<{ message: string; packingSlipPrintedAt: string }>(`/orders/${id}/packing-slip-printed`)
       .then((r) => r.data),
   resolveReturn: (id: string, action: 'approved' | 'rejected', note?: string) =>
     api

@@ -5,12 +5,13 @@ import {
   ORDER_STATUS_LABELS,
   PAYMENT_METHOD_LABELS,
   PAYMENT_STATUS_LABELS,
+  SHIPPING_CARRIER_LABELS,
   SHIPPING_OPTIONS,
   SHOP_INFO,
 } from '@/lib/constants'
 
-function escapeHtml(text: string): string {
-  return text
+function escapeHtml(text: string | null | undefined): string {
+  return String(text ?? '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -151,7 +152,17 @@ function buildSlipHtml(order: Order, qrDataUrl: string): string {
 
       <div class="footer-meta">
         <div><span class="label">Thanh toán</span> ${escapeHtml(paymentLabel)}</div>
-        <div><span class="label">Vận chuyển</span> ${escapeHtml(getShippingLabel(order))}</div>
+        <div><span class="label">Hình thức giao</span> ${escapeHtml(getShippingLabel(order))}</div>
+        ${
+          order.shippingCarrier
+            ? `<div><span class="label">Đơn vị VC</span> ${escapeHtml(SHIPPING_CARRIER_LABELS[order.shippingCarrier])}</div>`
+            : ''
+        }
+        ${
+          order.trackingNumber
+            ? `<div><span class="label">Mã vận đơn</span> ${escapeHtml(order.trackingNumber)}</div>`
+            : ''
+        }
         ${order.voucherCode ? `<div><span class="label">Voucher</span> ${escapeHtml(order.voucherCode)}</div>` : ''}
       </div>
 
@@ -432,30 +443,8 @@ const PRINT_STYLES = `
   }
 `
 
-/**
- * Opens a print preview window with one A6 packing slip per order.
- * Returns false when the popup is blocked or there is nothing to print.
- */
-export async function printOrderSlips(orders: Order[]): Promise<boolean> {
-  if (orders.length === 0) return false
-
-  const slips = await Promise.all(
-    orders.map(async (order) => {
-      const qrDataUrl = await buildQrDataUrl(order.id)
-      return buildSlipHtml(order, qrDataUrl)
-    }),
-  )
-
-  const printWindow = window.open('', '_blank', 'noopener,noreferrer,width=480,height=720')
-  if (!printWindow) return false
-
-  const title =
-    orders.length === 1
-      ? `Phiếu đóng gói ${orders[0].id}`
-      : `Phiếu đóng gói (${orders.length} đơn)`
-
-  printWindow.document.open()
-  printWindow.document.write(`<!DOCTYPE html>
+function buildPrintDocument(slips: string[], title: string): string {
+  return `<!DOCTYPE html>
 <html lang="vi">
   <head>
     <meta charset="UTF-8" />
@@ -473,8 +462,86 @@ export async function printOrderSlips(orders: Order[]): Promise<boolean> {
       });
     </script>
   </body>
-</html>`)
-  printWindow.document.close()
+</html>`
+}
+
+function openPrintWindow(html: string): boolean {
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  // Do not pass "noopener" — it makes window.open return null even when the tab opens.
+  const printWindow = window.open(url, '_blank', 'width=480,height=720')
+
+  if (!printWindow) {
+    URL.revokeObjectURL(url)
+    return false
+  }
+
+  const revoke = () => URL.revokeObjectURL(url)
+  printWindow.addEventListener('load', revoke, { once: true })
+  setTimeout(revoke, 60_000)
+  return true
+}
+
+function printViaHiddenIframe(html: string): boolean {
+  const iframe = document.createElement('iframe')
+  iframe.setAttribute('aria-hidden', 'true')
+  Object.assign(iframe.style, {
+    position: 'fixed',
+    width: '0',
+    height: '0',
+    border: '0',
+    opacity: '0',
+    pointerEvents: 'none',
+  })
+  document.body.appendChild(iframe)
+
+  const win = iframe.contentWindow
+  const doc = win?.document
+  if (!doc || !win) {
+    iframe.remove()
+    return false
+  }
+
+  doc.open()
+  doc.write(html)
+  doc.close()
+
+  const triggerPrint = () => {
+    win.focus()
+    win.print()
+    const cleanup = () => iframe.remove()
+    win.addEventListener('afterprint', cleanup, { once: true })
+    setTimeout(cleanup, 120_000)
+  }
+
+  if (doc.readyState === 'complete') {
+    setTimeout(triggerPrint, 300)
+  } else {
+    iframe.onload = () => setTimeout(triggerPrint, 300)
+  }
 
   return true
+}
+
+/**
+ * Opens a print preview window with one A6 packing slip per order.
+ * Falls back to a hidden iframe when popups are blocked.
+ */
+export async function printOrderSlips(orders: Order[]): Promise<boolean> {
+  if (orders.length === 0) return false
+
+  const slips = await Promise.all(
+    orders.map(async (order) => {
+      const qrDataUrl = await buildQrDataUrl(order.id)
+      return buildSlipHtml(order, qrDataUrl)
+    }),
+  )
+
+  const title =
+    orders.length === 1
+      ? `Phiếu đóng gói ${orders[0].id}`
+      : `Phiếu đóng gói (${orders.length} đơn)`
+
+  const html = buildPrintDocument(slips, title)
+  return openPrintWindow(html) || printViaHiddenIframe(html)
 }

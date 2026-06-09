@@ -12,6 +12,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { Link } from 'react-router'
 import {
   AlertTriangle,
   DollarSign,
@@ -77,7 +78,12 @@ export function AdminDashboardPage() {
 
       {/* Secondary metrics */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <MetricCard label="Đơn chờ xử lý" value={formatNumber(stats.pendingOrders)} icon={ShoppingBag} />
+        <MetricCard
+          label="Đơn chờ xử lý"
+          value={formatNumber(stats.pendingOrders)}
+          icon={ShoppingBag}
+          to={stats.pendingOrders > 0 ? '/orders?tab=pending' : undefined}
+        />
         <MetricCard label="Sản phẩm sắp hết" value={formatNumber(stats.lowStockProducts)} icon={AlertTriangle} warn />
         <MetricCard label="Tỉ lệ hoàn trả" value={`${stats.returnRate}%`} icon={Package} />
       </div>
@@ -173,20 +179,33 @@ interface MetricCardProps {
   value: string
   icon: typeof Package
   warn?: boolean
+  to?: string
 }
 
-function MetricCard({ label, value, icon: Icon, warn }: MetricCardProps) {
+function MetricCard({ label, value, icon: Icon, warn, to }: MetricCardProps) {
+  const content = (
+    <CardContent className="flex items-center gap-3 p-4">
+      <span
+        className={`grid size-10 place-items-center rounded-lg ${warn ? 'bg-amber-100 text-amber-600' : 'bg-secondary text-primary'}`}
+      >
+        <Icon className="size-5" />
+      </span>
+      <div>
+        <p className="text-sm text-muted-foreground">{label}</p>
+        <p className="text-xl font-bold">{value}</p>
+      </div>
+    </CardContent>
+  )
+
+  if (!to) {
+    return <Card>{content}</Card>
+  }
+
   return (
-    <Card>
-      <CardContent className="flex items-center gap-3 p-4">
-        <span className={`grid size-10 place-items-center rounded-lg ${warn ? 'bg-amber-100 text-amber-600' : 'bg-secondary text-primary'}`}>
-          <Icon className="size-5" />
-        </span>
-        <div>
-          <p className="text-sm text-muted-foreground">{label}</p>
-          <p className="text-xl font-bold">{value}</p>
-        </div>
-      </CardContent>
+    <Card className="transition-colors hover:border-primary/40">
+      <Link to={to} className="block">
+        {content}
+      </Link>
     </Card>
   )
 }

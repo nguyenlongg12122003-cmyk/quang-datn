@@ -9,7 +9,12 @@ import { Separator } from '@/components/ui/separator'
 import { OrderStatusBadge } from '@/components/common/OrderStatusBadge'
 import { Button } from '@/components/ui/button'
 import { formatCurrency, formatDateTime } from '@/lib/format'
-import { ORDER_STATUS_LABELS, PAYMENT_METHOD_LABELS, PAYMENT_STATUS_LABELS } from '@/lib/constants'
+import {
+  ORDER_STATUS_LABELS,
+  PAYMENT_METHOD_LABELS,
+  PAYMENT_STATUS_LABELS,
+  SHIPPING_CARRIER_LABELS,
+} from '@/lib/constants'
 import { Download } from 'lucide-react'
 import type { Order } from '@/types'
 
@@ -152,6 +157,19 @@ export function OrderDetailDialog({
                   </div>
                 ))}
               </section>
+
+              {order.trackingNumber ? (
+                <>
+                  <Separator />
+                  <section className="rounded-lg border bg-muted/20 p-3">
+                    <h4 className="mb-1 font-semibold">Theo dõi vận chuyển</h4>
+                    {order.shippingCarrier ? (
+                      <p>Đơn vị: {SHIPPING_CARRIER_LABELS[order.shippingCarrier]}</p>
+                    ) : null}
+                    <p className="font-medium">Mã vận đơn: {order.trackingNumber}</p>
+                  </section>
+                </>
+              ) : null}
 
               <Separator />
 

@@ -278,27 +278,160 @@ async function buildOrders(pool, userId) {
   return buildOrdersFromRows(ordersResult.recordset, itemResult.recordset, timelineResult.recordset);
 }
 
-async function buildAllOrders(pool, { status, q } = {}) {
+const ORDER_TAB_STATUS_MAP = {
+  pending: ['pending'],
+  packing: ['confirmed', 'processing'],
+  shipping: ['shipping'],
+};
+
+async function loadOrderItemsForOrders(pool, orderIds) {
+  if (orderIds.length === 0) return [];
+
+  const request = pool.request();
+  const placeholders = orderIds.map((id, index) => {
+    request.input(`orderId${index}`, sql.NVarChar, id);
+    return `@orderId${index}`;
+  });
+
+  const result = await request.query(`
+    SELECT *
+    FROM dbo.order_items
+    WHERE orderId IN (${placeholders.join(', ')})
+  `);
+
+  return result.recordset;
+}
+
+async function loadOrderTimelinesForOrders(pool, orderIds) {
+  if (orderIds.length === 0) return [];
+
+  const request = pool.request();
+  const placeholders = orderIds.map((id, index) => {
+    request.input(`orderId${index}`, sql.NVarChar, id);
+    return `@orderId${index}`;
+  });
+
+  const result = await request.query(`
+    SELECT *
+    FROM dbo.order_timeline
+    WHERE orderId IN (${placeholders.join(', ')})
+    ORDER BY [date]
+  `);
+
+  return result.recordset;
+}
+
+function appendOrderTabFilter(request, conditions, tab) {
+  if (tab === 'needs_action') {
+    conditions.push(`(
+      [status] IN ('pending', 'confirmed')
+      OR ([status] = 'processing' AND packingSlipPrintedAt IS NULL)
+      OR (
+        [paymentMethod] <> 'cod'
+        AND [paymentStatus] = 'pending'
+        AND [status] IN ('pending', 'confirmed', 'processing')
+      )
+    )`);
+    return;
+  }
+
+  const statuses = ORDER_TAB_STATUS_MAP[tab];
+  if (!statuses) return;
+
+  statuses.forEach((value, index) => {
+    request.input(`tabStatus${index}`, sql.NVarChar, value);
+  });
+  conditions.push(`[status] IN (${statuses.map((_, index) => `@tabStatus${index}`).join(', ')})`);
+}
+
+async function buildAllOrders(pool, {
+  status,
+  tab,
+  q,
+  hasReturn,
+  page,
+  limit,
+} = {}) {
   const request = pool.request();
   const conditions = [];
+  const normalizedTab = tab && tab !== 'all' ? String(tab) : null;
 
-  if (status && status !== 'all') {
+  if (normalizedTab === 'return_pending' || hasReturn === 'pending') {
+    conditions.push("returnRequest IS NOT NULL AND JSON_VALUE(returnRequest, '$.status') = 'pending'");
+  } else if (normalizedTab) {
+    appendOrderTabFilter(request, conditions, normalizedTab);
+  } else if (status && status !== 'all') {
     request.input('statusFilter', sql.NVarChar, status);
-    conditions.push("[status] = @statusFilter");
+    conditions.push('[status] = @statusFilter');
   }
+
   if (q) {
-    request.input('q', sql.NVarChar, `%${q}%`);
-    conditions.push("(id LIKE @q OR shippingAddress LIKE @q)");
+    request.input('q', sql.NVarChar, `%${String(q)}%`);
+    conditions.push(`(
+      id LIKE @q
+      OR shippingAddress LIKE @q
+      OR note LIKE @q
+      OR EXISTS (
+        SELECT 1
+        FROM dbo.order_items oi
+        WHERE oi.orderId = dbo.orders.id
+          AND oi.productName LIKE @q
+      )
+    )`);
   }
 
   const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-  const ordersResult = await request.query(`SELECT * FROM dbo.orders ${where} ORDER BY createdAt DESC`);
-  if (ordersResult.recordset.length === 0) return [];
+  const parsedPage = Math.max(1, Number(page) || 1);
+  const parsedLimit = Math.min(100, Math.max(1, Number(limit) || 20));
+  const offset = (parsedPage - 1) * parsedLimit;
 
-  const allItems = await pool.request().query('SELECT * FROM dbo.order_items');
-  const allTimelines = await pool.request().query('SELECT * FROM dbo.order_timeline ORDER BY [date]');
+  request.input('offset', sql.Int, offset);
+  request.input('limit', sql.Int, parsedLimit);
 
-  return buildOrdersFromRows(ordersResult.recordset, allItems.recordset, allTimelines.recordset);
+  const ordersResult = await request.query(`
+    SELECT *, COUNT(*) OVER() AS totalCount
+    FROM dbo.orders
+    ${where}
+    ORDER BY createdAt DESC
+    OFFSET @offset ROWS
+    FETCH NEXT @limit ROWS ONLY
+  `);
+
+  const rows = ordersResult.recordset;
+  const total = rows.length > 0 ? Number(rows[0].totalCount) : 0;
+  if (rows.length === 0) {
+    return { items: [], total: 0 };
+  }
+
+  const orderIds = rows.map((row) => row.id);
+  const [itemRows, timelineRows] = await Promise.all([
+    loadOrderItemsForOrders(pool, orderIds),
+    loadOrderTimelinesForOrders(pool, orderIds),
+  ]);
+
+  const items = buildOrdersFromRows(
+    rows.map(({ totalCount, ...orderRow }) => orderRow),
+    itemRows,
+    timelineRows,
+  );
+
+  return { items, total };
+}
+
+async function loadOrderById(pool, orderId) {
+  const orderResult = await pool.request()
+    .input('id', sql.NVarChar, orderId)
+    .query('SELECT TOP 1 * FROM dbo.orders WHERE id = @id');
+
+  const row = orderResult.recordset[0];
+  if (!row) return null;
+
+  const [itemRows, timelineRows] = await Promise.all([
+    loadOrderItemsForOrders(pool, [orderId]),
+    loadOrderTimelinesForOrders(pool, [orderId]),
+  ]);
+
+  return buildOrdersFromRows([row], itemRows, timelineRows)[0];
 }
 
 function buildOrdersFromRows(orders, items, timelines) {
@@ -368,6 +501,39 @@ const allowedOrderTransitions = {
   cancelled: [],
   returned: [],
 };
+
+const VALID_SHIPPING_CARRIERS = ['ghtk', 'ghn', 'viettel_post', 'jt', 'ninja_van', 'vnpost', 'other'];
+const PAYMENT_GATED_STATUSES = ['confirmed', 'processing', 'shipping'];
+
+function isOnlinePaymentPending(order) {
+  return order.paymentMethod !== 'cod' && order.paymentStatus !== 'paid';
+}
+
+function assertPaymentAllowsStatus(order, nextStatus) {
+  if (!PAYMENT_GATED_STATUSES.includes(nextStatus)) return null;
+  if (isOnlinePaymentPending(order)) {
+    return 'Đơn thanh toán online chưa được thanh toán. Không thể tiếp tục xử lý.';
+  }
+  return null;
+}
+
+function normalizeTrackingNumber(value) {
+  return String(value || '').trim();
+}
+
+function assertProcessingHandoffReady(order, { shippingCarrier, trackingNumber } = {}) {
+  const carrier = String(shippingCarrier || '').trim();
+  if (!carrier || !VALID_SHIPPING_CARRIERS.includes(carrier)) {
+    return 'Vui lòng chọn đơn vị vận chuyển hợp lệ.';
+  }
+
+  const tracking = normalizeTrackingNumber(trackingNumber);
+  if (!tracking || tracking.length < 4) {
+    return 'Vui lòng nhập mã vận đơn hợp lệ.';
+  }
+
+  return null;
+}
 
 async function adjustVoucherUsage(pool, voucherCode, direction) {
   if (!voucherCode) return;
@@ -739,10 +905,58 @@ router.post('/:id/return-request', authMiddleware, async (req, res, next) => {
 // Get ALL orders (admin)
 router.get('/', authMiddleware, adminMiddleware, async (req, res, next) => {
   try {
-    const { status, q } = req.query;
+    const { status, tab, q, hasReturn, page, limit } = req.query;
     const pool = await getPool();
-    const orders = await buildAllOrders(pool, { status, q });
-    return res.json(orders);
+    const result = await buildAllOrders(pool, { status, tab, q, hasReturn, page, limit });
+    return res.json(result);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+// Get single order (admin)
+router.get('/:id', authMiddleware, adminMiddleware, async (req, res, next) => {
+  try {
+    const pool = await getPool();
+    const order = await loadOrderById(pool, req.params.id);
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+    return res.json(order);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+// Mark packing slip as printed (admin)
+router.post('/:id/packing-slip-printed', authMiddleware, adminMiddleware, async (req, res, next) => {
+  try {
+    const pool = await getPool();
+    const orderResult = await pool.request()
+      .input('id', sql.NVarChar, req.params.id)
+      .query('SELECT TOP 1 id, [status] FROM dbo.orders WHERE id = @id');
+
+    const order = orderResult.recordset[0];
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    if (!['confirmed', 'processing'].includes(order.status)) {
+      return res.status(409).json({ message: 'Chỉ có thể đánh dấu in phiếu khi đơn đang ở trạng thái đã xác nhận hoặc đang xử lý' });
+    }
+
+    await pool.request()
+      .input('id', sql.NVarChar, req.params.id)
+      .query('UPDATE dbo.orders SET packingSlipPrintedAt = SYSUTCDATETIME() WHERE id = @id');
+
+    const printedAtResult = await pool.request()
+      .input('id', sql.NVarChar, req.params.id)
+      .query('SELECT TOP 1 packingSlipPrintedAt FROM dbo.orders WHERE id = @id');
+
+    return res.json({
+      message: 'Packing slip marked as printed',
+      packingSlipPrintedAt: printedAtResult.recordset[0]?.packingSlipPrintedAt,
+    });
   } catch (error) {
     return next(error);
   }
@@ -751,7 +965,7 @@ router.get('/', authMiddleware, adminMiddleware, async (req, res, next) => {
 // Update order status (admin)
 router.patch('/:id/status', authMiddleware, adminMiddleware, async (req, res, next) => {
   try {
-    const { status, note } = req.body;
+    const { status, note, shippingCarrier, trackingNumber } = req.body;
     const validStatuses = ['pending', 'confirmed', 'processing', 'shipping', 'delivered', 'cancelled', 'returned'];
     if (!status || !validStatuses.includes(status)) {
       return res.status(400).json({ message: 'Invalid status' });
@@ -760,7 +974,8 @@ router.patch('/:id/status', authMiddleware, adminMiddleware, async (req, res, ne
     const pool = await getPool();
     const orderResult = await pool.request()
       .input('id', sql.NVarChar, req.params.id)
-      .query('SELECT TOP 1 id, [status], paymentStatus, voucherCode, paymentMethod FROM dbo.orders WHERE id = @id');
+      .query(`SELECT TOP 1 id, [status], paymentStatus, voucherCode, paymentMethod, packingSlipPrintedAt
+        FROM dbo.orders WHERE id = @id`);
 
     const order = orderResult.recordset[0];
     if (!order) {
@@ -776,16 +991,45 @@ router.patch('/:id/status', authMiddleware, adminMiddleware, async (req, res, ne
       return res.status(409).json({ message: `Không thể chuyển đơn từ ${order.status} sang ${status}` });
     }
 
+    const paymentBlockReason = assertPaymentAllowsStatus(order, status);
+    if (paymentBlockReason) {
+      return res.status(409).json({ message: paymentBlockReason });
+    }
+
+    if (order.status === 'processing' && status === 'shipping') {
+      const handoffError = assertProcessingHandoffReady(order, { shippingCarrier, trackingNumber });
+      if (handoffError) {
+        return res.status(400).json({ message: handoffError });
+      }
+    }
+
     let nextPaymentStatus = order.paymentStatus;
     if (status === 'cancelled' && order.paymentStatus === 'paid') {
       nextPaymentStatus = 'refunded';
     }
+    if (status === 'delivered' && order.paymentMethod === 'cod' && order.paymentStatus === 'pending') {
+      nextPaymentStatus = 'paid';
+    }
+
+    const normalizedCarrier = order.status === 'processing' && status === 'shipping'
+      ? String(shippingCarrier).trim()
+      : null;
+    const normalizedTracking = order.status === 'processing' && status === 'shipping'
+      ? normalizeTrackingNumber(trackingNumber)
+      : null;
 
     await pool.request()
       .input('id', sql.NVarChar, req.params.id)
       .input('status', sql.NVarChar, status)
       .input('paymentStatus', sql.NVarChar, nextPaymentStatus)
-      .query("UPDATE dbo.orders SET [status] = @status, paymentStatus = @paymentStatus WHERE id = @id");
+      .input('shippingCarrier', sql.NVarChar, normalizedCarrier)
+      .input('trackingNumber', sql.NVarChar, normalizedTracking)
+      .query(`UPDATE dbo.orders
+        SET [status] = @status,
+            paymentStatus = @paymentStatus,
+            shippingCarrier = CASE WHEN @shippingCarrier IS NULL THEN shippingCarrier ELSE @shippingCarrier END,
+            trackingNumber = CASE WHEN @trackingNumber IS NULL THEN trackingNumber ELSE @trackingNumber END
+        WHERE id = @id`);
 
     if (status === 'cancelled' && order.voucherCode) {
       await adjustVoucherUsage(pool, order.voucherCode, 'decrement');

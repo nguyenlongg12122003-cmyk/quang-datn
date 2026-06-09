@@ -126,8 +126,26 @@ BEGIN
     note NVARCHAR(MAX) NULL,
     createdAt DATETIME2 NOT NULL,
     returnRequest NVARCHAR(MAX) NULL,
+    shippingCarrier NVARCHAR(50) NULL,
+    trackingNumber NVARCHAR(100) NULL,
+    packingSlipPrintedAt DATETIME2 NULL,
     FOREIGN KEY (userId) REFERENCES dbo.users(id)
   );
+END;
+
+IF OBJECT_ID('dbo.orders', 'U') IS NOT NULL AND COL_LENGTH('dbo.orders', 'shippingCarrier') IS NULL
+BEGIN
+  ALTER TABLE dbo.orders ADD shippingCarrier NVARCHAR(50) NULL;
+END;
+
+IF OBJECT_ID('dbo.orders', 'U') IS NOT NULL AND COL_LENGTH('dbo.orders', 'trackingNumber') IS NULL
+BEGIN
+  ALTER TABLE dbo.orders ADD trackingNumber NVARCHAR(100) NULL;
+END;
+
+IF OBJECT_ID('dbo.orders', 'U') IS NOT NULL AND COL_LENGTH('dbo.orders', 'packingSlipPrintedAt') IS NULL
+BEGIN
+  ALTER TABLE dbo.orders ADD packingSlipPrintedAt DATETIME2 NULL;
 END;
 
 IF OBJECT_ID('dbo.order_items', 'U') IS NULL

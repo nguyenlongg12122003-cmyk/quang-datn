@@ -18,6 +18,7 @@ export const queryKeys = {
   },
   orders: {
     adminList: (query: AdminOrderQuery) => ['orders', 'admin', query] as const,
+    adminDetail: (id: string) => ['orders', 'admin', 'detail', id] as const,
   },
   users: {
     adminList: (query: AdminUserQuery) => ['users', 'admin', query] as const,

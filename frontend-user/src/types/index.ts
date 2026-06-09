@@ -170,6 +170,14 @@ export type OrderStatus =
 export type PaymentMethod = 'cod' | 'vnpay' | 'payos'
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded'
 export type ShippingMethod = 'standard' | 'express' | 'same_day'
+export type ShippingCarrier =
+  | 'ghtk'
+  | 'ghn'
+  | 'viettel_post'
+  | 'jt'
+  | 'ninja_van'
+  | 'vnpost'
+  | 'other'
 
 export interface OrderTimelineEntry {
   status: OrderStatus
@@ -201,6 +209,9 @@ export interface Order {
   shippingAddress: Omit<Address, 'id' | 'isDefault'> & Partial<Pick<Address, 'id' | 'isDefault'>>
   voucherCode?: string | null
   note?: string
+  shippingCarrier?: ShippingCarrier | null
+  trackingNumber?: string | null
+  packingSlipPrintedAt?: string | null
   createdAt: string
   returnRequest?: ReturnRequest | null
   items: OrderItem[]

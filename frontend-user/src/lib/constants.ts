@@ -2,6 +2,7 @@ import type {
   OrderStatus,
   PaymentMethod,
   PaymentStatus,
+  ShippingCarrier,
   ShippingMethod,
 } from '@/types'
 
@@ -45,3 +46,13 @@ export const SHIPPING_OPTIONS: ShippingOption[] = [
 ]
 
 export const FREE_SHIPPING_THRESHOLD = 500000
+
+export const SHIPPING_CARRIER_LABELS: Record<ShippingCarrier, string> = {
+  ghtk: 'GHTK',
+  ghn: 'GHN',
+  viettel_post: 'Viettel Post',
+  jt: 'J&T Express',
+  ninja_van: 'Ninja Van',
+  vnpost: 'VNPost',
+  other: 'Khác',
+}

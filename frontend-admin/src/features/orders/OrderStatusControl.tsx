@@ -1,21 +1,25 @@
 import { useState } from 'react'
-import { ArrowRight, Check, X } from 'lucide-react'
+import { ArrowRight, Check, PackageCheck, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { OrderStatusBadge } from '@/components/common/OrderStatusBadge'
 import { ORDER_STATUS_LABELS, ORDER_STATUS_TRANSITIONS } from '@/lib/constants'
+import {
+  getNextOrderStatus,
+  getPaymentBlockReason,
+  hasPendingReturn,
+  requiresHandoffDialog,
+} from '@/features/orders/order-helpers'
 import { cn } from '@/lib/utils'
 import type { Order, OrderStatus } from '@/types'
 
-// The linear "happy path" a healthy order moves through.
 const PIPELINE = ['pending', 'confirmed', 'processing', 'shipping', 'delivered'] as const
 type PipelineStatus = (typeof PIPELINE)[number]
 
-// Compact labels shown under each stepper dot.
 const STEP_LABELS: Record<PipelineStatus, string> = {
   pending: 'Chờ',
   confirmed: 'Xác nhận',
-  processing: 'Xử lý',
+  processing: 'Đóng gói',
   shipping: 'Giao hàng',
   delivered: 'Hoàn tất',
 }
@@ -29,10 +33,10 @@ function StatusPipeline({ status }: { status: OrderStatus }) {
         const current = i === currentIndex
         return (
           <li key={step} className="flex items-start">
-            <div className="flex w-12 flex-col items-center gap-1">
+            <div className="flex w-14 flex-col items-center gap-1.5 sm:w-16">
               <span
                 className={cn(
-                  'grid size-6 place-items-center rounded-full border text-[11px] font-semibold transition-colors',
+                  'grid size-7 place-items-center rounded-full border text-[11px] font-semibold transition-colors sm:size-8',
                   done && 'border-primary bg-primary text-primary-foreground',
                   current && 'border-primary bg-primary/10 text-primary ring-2 ring-primary/30',
                   !done && !current && 'border-border bg-background text-muted-foreground',
@@ -42,7 +46,7 @@ function StatusPipeline({ status }: { status: OrderStatus }) {
               </span>
               <span
                 className={cn(
-                  'text-center text-[10px] leading-tight',
+                  'text-center text-[10px] leading-tight sm:text-[11px]',
                   current ? 'font-medium text-foreground' : 'text-muted-foreground',
                 )}
               >
@@ -52,7 +56,7 @@ function StatusPipeline({ status }: { status: OrderStatus }) {
             {i < PIPELINE.length - 1 ? (
               <span
                 className={cn(
-                  'mt-3 h-0.5 w-4 rounded-full',
+                  'mt-3.5 h-0.5 w-5 rounded-full sm:w-6',
                   i < currentIndex ? 'bg-primary' : 'bg-border',
                 )}
               />
@@ -68,27 +72,51 @@ interface OrderStatusControlProps {
   order: Order
   pending: boolean
   onAdvance: (next: OrderStatus) => void
+  onHandoff: () => void
   onCancel: () => void
   onResolveReturn: (action: 'approved' | 'rejected') => void
+  className?: string
 }
 
 export function OrderStatusControl({
   order,
   pending,
   onAdvance,
+  onHandoff,
   onCancel,
   onResolveReturn,
+  className,
 }: OrderStatusControlProps) {
   const [confirmCancel, setConfirmCancel] = useState(false)
-  const transitions = ORDER_STATUS_TRANSITIONS[order.status]
-  const forward = transitions.find((t) => t !== 'cancelled') ?? null
-  const canCancel = transitions.includes('cancelled')
-  const hasReturn = order.returnRequest?.status === 'pending'
+  const [confirmDeliver, setConfirmDeliver] = useState(false)
+
+  const nextStatus = getNextOrderStatus(order)
+  const paymentBlockReason = nextStatus ? getPaymentBlockReason(order, nextStatus) : null
+  const canCancel = ORDER_STATUS_TRANSITIONS[order.status].includes('cancelled')
+  const hasReturn = hasPendingReturn(order)
   const isOffPath = order.status === 'cancelled' || order.status === 'returned'
+  const needsHandoff = nextStatus ? requiresHandoffDialog(order, nextStatus) : false
 
   return (
-    <div className="space-y-2.5">
-      {isOffPath ? <OrderStatusBadge status={order.status} /> : <StatusPipeline status={order.status} />}
+    <div className={cn('space-y-3', className)}>
+      {isOffPath ? (
+        <OrderStatusBadge status={order.status} />
+      ) : (
+        <div className="-mx-1 overflow-x-auto px-1 pb-1">
+          <StatusPipeline status={order.status} />
+        </div>
+      )}
+
+      {order.status === 'processing' ? (
+        <p className="text-xs text-muted-foreground">
+          Chọn đơn vị vận chuyển và nhập mã vận đơn để bàn giao. In phiếu có thể thực hiện hàng loạt
+          từ danh sách đơn.
+        </p>
+      ) : null}
+
+      {paymentBlockReason ? (
+        <p className="text-xs font-medium text-amber-700">{paymentBlockReason}</p>
+      ) : null}
 
       <div className="flex flex-wrap items-center gap-2">
         {hasReturn ? (
@@ -103,10 +131,28 @@ export function OrderStatusControl({
           </>
         ) : (
           <>
-            {forward ? (
-              <Button size="sm" disabled={pending} onClick={() => onAdvance(forward)}>
+            {needsHandoff ? (
+              <Button size="sm" disabled={pending || Boolean(paymentBlockReason)} onClick={onHandoff}>
+                <PackageCheck className="size-4" />
+                Bàn giao VC
+              </Button>
+            ) : nextStatus === 'delivered' ? (
+              <Button
+                size="sm"
+                disabled={pending}
+                onClick={() => setConfirmDeliver(true)}
+              >
                 <ArrowRight className="size-4" />
-                {ORDER_STATUS_LABELS[forward]}
+                {ORDER_STATUS_LABELS.delivered}
+              </Button>
+            ) : nextStatus ? (
+              <Button
+                size="sm"
+                disabled={pending || Boolean(paymentBlockReason)}
+                onClick={() => onAdvance(nextStatus)}
+              >
+                <ArrowRight className="size-4" />
+                {ORDER_STATUS_LABELS[nextStatus]}
               </Button>
             ) : null}
             {canCancel ? (
@@ -121,7 +167,7 @@ export function OrderStatusControl({
                 Hủy
               </Button>
             ) : null}
-            {!forward && !canCancel ? (
+            {!nextStatus && !canCancel ? (
               <span className="text-xs text-muted-foreground">Không có thao tác</span>
             ) : null}
           </>
@@ -139,6 +185,23 @@ export function OrderStatusControl({
         onConfirm={() => {
           onCancel()
           setConfirmCancel(false)
+        }}
+      />
+
+      <ConfirmDialog
+        open={confirmDeliver}
+        onOpenChange={setConfirmDeliver}
+        title="Xác nhận đã giao hàng?"
+        description={
+          order.paymentMethod === 'cod'
+            ? `Đơn ${order.id} sẽ chuyển sang "Đã giao" và COD sẽ được đánh dấu đã thu tiền.`
+            : `Đơn ${order.id} sẽ chuyển sang trạng thái "Đã giao".`
+        }
+        confirmLabel="Đã giao"
+        cancelLabel="Chưa"
+        onConfirm={() => {
+          onAdvance('delivered')
+          setConfirmDeliver(false)
         }}
       />
     </div>
