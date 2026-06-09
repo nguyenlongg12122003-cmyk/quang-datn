@@ -22,9 +22,17 @@ const { notFound, errorHandler } = require('./middlewares/errorMiddleware');
 
 const app = express();
 const httpServer = http.createServer(app);
-const FRONTEND_BASE_URL = process.env.FRONTEND_BASE_URL || 'http://localhost:5173';
+const USER_FRONTEND_URL = process.env.FRONTEND_BASE_URL || 'http://localhost:5173';
+const ADMIN_FRONTEND_URL = process.env.ADMIN_FRONTEND_URL || 'http://localhost:5174';
+const allowedOrigins = [USER_FRONTEND_URL, ADMIN_FRONTEND_URL];
 const corsOptions = {
-  origin: FRONTEND_BASE_URL,
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+    callback(null, false);
+  },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   optionsSuccessStatus: 204,
@@ -32,7 +40,7 @@ const corsOptions = {
 
 const io = new SocketIOServer(httpServer, {
   cors: {
-    origin: FRONTEND_BASE_URL,
+    origin: allowedOrigins,
     methods: ['GET', 'POST'],
   },
   connectionStateRecovery: {},

@@ -20,8 +20,10 @@ Bước 2.1: Cài đặt dependencies
 cd backend
 npm install
 
-# Frontend-new
-cd ../frontend-new
+# Frontend (2 app độc lập — deploy riêng)
+cd ../frontend-user
+npm install
+cd ../frontend-admin
 npm install
 
 Bước 2.2: Cấu hình Backend (quan trọng nhất)
@@ -44,6 +46,7 @@ DB_ENCRYPT=false
 DB_TRUST_SERVER_CERT=true
 
 FRONTEND_BASE_URL=http://localhost:5173
+ADMIN_FRONTEND_URL=http://localhost:5174
 
 │ Lưu ý:
 │ • Database VanPhongPham_DB không cần tạo sẵn. Backend sẽ tự tạo toàn bộ bảng khi chạy lần đầu.
@@ -70,31 +73,38 @@ Tài khoản test sau khi seed:
 
 Backend chạy mặc định tại: http://localhost:5000
 
-Bước 2.4: Cấu hình & chạy Frontend-new
+Bước 2.4: Cấu hình & chạy Frontend
 
-cd frontend-new
+Cửa hàng khách hàng (`frontend-user`):
+
+cd frontend-user
 cp .env.example .env
+npm run dev
 
-Nội dung .env mặc định thường đã ổn:
+→ http://localhost:5173
+
+Quản trị (`frontend-admin`):
+
+cd frontend-admin
+cp .env.example .env
+npm run dev
+
+→ http://localhost:5174
+
+Biến môi trường chung (cả hai app):
 
 VITE_API_URL=http://localhost:5000/api
 VITE_SOCKET_URL=http://localhost:5000
 
-# Chỉ cần điền nếu muốn dùng upload ảnh thật
-VITE_CLOUDINARY_CLOUD_NAME=
-VITE_CLOUDINARY_UPLOAD_PRESET=
+Admin thêm (link về cửa hàng):
 
-Chạy frontend:
-
-npm run dev
-
-Frontend chạy tại: http://localhost:5173
+VITE_STORE_URL=http://localhost:5173
 
 3. Thứ tự chạy khuyến nghị
 
 1. Khởi động SQL Server
 2. Chạy Backend trước (npm run dev)
-3. Chạy Frontend-new (npm run dev)
+3. Chạy frontend-user và/hoặc frontend-admin
 
 4. Các tính năng cần cấu hình thêm (không bắt buộc để chạy)
 
@@ -125,8 +135,14 @@ npm install
 cp .env.example .env   # sửa DB_USER, DB_PASSWORD, JWT_SECRET
 npm run dev
 
-# Terminal 2 - Frontend
-cd frontend-new
+# Terminal 2 - Cửa hàng
+cd frontend-user
+npm install
+cp .env.example .env
+npm run dev
+
+# Terminal 3 - Quản trị (tuỳ chọn)
+cd frontend-admin
 npm install
 cp .env.example .env
 npm run dev
