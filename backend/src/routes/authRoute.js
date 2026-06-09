@@ -35,11 +35,14 @@ router.post('/login', async (req, res, next) => {
 		const pool = await getPool();
 		const result = await pool.request()
 			.input('email', sql.NVarChar, email)
-			.query('SELECT TOP 1 id, email, name, phone, avatar, role, status, passwordHash, createdAt FROM dbo.users WHERE email = @email');
+			.query('SELECT TOP 1 id, email, name, phone, avatar, role, status, customerType, passwordHash, createdAt FROM dbo.users WHERE email = @email');
 
 		const user = result.recordset[0];
 		if (!user) {
 			return res.status(401).json({ message: 'Invalid email or password' });
+		}
+		if (user.status === 'locked') {
+			return res.status(403).json({ message: 'Tài khoản đã bị khóa. Vui lòng liên hệ hỗ trợ.' });
 		}
 
 		const isMatch = await bcrypt.compare(password, user.passwordHash);
@@ -60,6 +63,7 @@ router.post('/login', async (req, res, next) => {
 				avatar: user.avatar,
 				role: user.role,
 				status: user.status,
+				customerType: user.customerType || 'retail',
 				createdAt: user.createdAt,
 				addresses,
 			},
@@ -134,7 +138,7 @@ router.get('/me', authMiddleware, async (req, res, next) => {
 		const pool = await getPool();
 		const result = await pool.request()
 			.input('id', sql.NVarChar, req.user.userId)
-			.query('SELECT TOP 1 id, email, name, phone, avatar, role, status, createdAt FROM dbo.users WHERE id = @id');
+			.query('SELECT TOP 1 id, email, name, phone, avatar, role, status, customerType, createdAt FROM dbo.users WHERE id = @id');
 
 		const user = result.recordset[0];
 		if (!user) {

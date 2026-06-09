@@ -21,6 +21,9 @@ const AdminOrderDetailPage = lazy(() =>
 const AdminVouchersPage = lazy(() => import('@/pages/admin/AdminVouchersPage').then((m) => ({ default: m.AdminVouchersPage })))
 const AdminUsersPage = lazy(() => import('@/pages/admin/AdminUsersPage').then((m) => ({ default: m.AdminUsersPage })))
 const AdminSupportPage = lazy(() => import('@/pages/admin/AdminSupportPage').then((m) => ({ default: m.AdminSupportPage })))
+const AdminInventoryPage = lazy(() => import('@/pages/admin/AdminInventoryPage').then((m) => ({ default: m.AdminInventoryPage })))
+const AdminBusinessPage = lazy(() => import('@/pages/admin/AdminBusinessPage').then((m) => ({ default: m.AdminBusinessPage })))
+const AdminQuotationsPage = lazy(() => import('@/pages/admin/AdminQuotationsPage').then((m) => ({ default: m.AdminQuotationsPage })))
 
 function PageFallback() {
   return (
@@ -52,6 +55,9 @@ function AppRoutes() {
             <Route path="orders/:id" element={<AdminOrderDetailPage />} />
             <Route path="vouchers" element={<AdminVouchersPage />} />
             <Route path="users" element={<AdminUsersPage />} />
+            <Route path="business" element={<AdminBusinessPage />} />
+            <Route path="quotations" element={<AdminQuotationsPage />} />
+            <Route path="inventory" element={<AdminInventoryPage />} />
             <Route path="support" element={<AdminSupportPage />} />
           </Route>
         </Route>

@@ -40,7 +40,52 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   cod: 'Thanh toán khi nhận hàng (COD)',
   vnpay: 'VNPay',
   payos: 'PayOS',
+  credit: 'Thanh toán công nợ (B2B)',
 }
+
+export const CUSTOMIZATION_STATUS_LABELS = {
+  pending_review: 'Chờ duyệt mẫu',
+  approved: 'Đã duyệt mẫu',
+  rejected: 'Từ chối mẫu',
+  in_production: 'Đang sản xuất',
+  completed: 'Hoàn tất in ấn',
+} as const
+
+export const BUSINESS_TYPE_LABELS = {
+  company: 'Công ty / Doanh nghiệp',
+  school: 'Trường học',
+  government: 'Cơ quan nhà nước',
+  other: 'Tổ chức khác',
+} as const
+
+export const BUSINESS_STATUS_LABELS = {
+  pending: 'Chờ duyệt',
+  approved: 'Đã duyệt',
+  rejected: 'Từ chối',
+} as const
+
+export const CUSTOMER_TYPE_LABELS = {
+  retail: 'Giá lẻ',
+  wholesale: 'Giá sỉ',
+  enterprise: 'Giá đại lý',
+} as const
+
+export const QUOTATION_STATUS_LABELS = {
+  draft: 'Nháp',
+  sent: 'Đã gửi',
+  accepted: 'Đã duyệt',
+  rejected: 'Từ chối',
+  converted: 'Đã chuyển đơn',
+  expired: 'Hết hạn',
+} as const
+
+export const STOCK_MOVEMENT_TYPE_LABELS = {
+  in: 'Nhập kho',
+  out: 'Xuất kho',
+  adjustment: 'Kiểm kê',
+  sale: 'Bán hàng',
+  return: 'Hoàn hàng',
+} as const
 
 export interface ShippingOption {
   value: ShippingMethod

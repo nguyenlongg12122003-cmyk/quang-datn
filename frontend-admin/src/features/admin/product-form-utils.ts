@@ -16,6 +16,12 @@ export interface WholesaleRow {
   price: string
 }
 
+export interface PackagingRow {
+  label: string
+  qtyPerUnit: string
+  price: string
+}
+
 export interface ProductFormState {
   name: string
   sku: string
@@ -37,6 +43,11 @@ export interface ProductFormState {
   customizationOptions: CustomizationOption[]
   specifications: SpecRow[]
   wholesaleTiers: WholesaleRow[]
+  enterpriseTiers: WholesaleRow[]
+  packagingUnits: PackagingRow[]
+  barcode: string
+  lowStockThreshold: string
+  customizationLeadDays: string
 }
 
 export const EMPTY_PRODUCT_FORM: ProductFormState = {
@@ -60,13 +71,19 @@ export const EMPTY_PRODUCT_FORM: ProductFormState = {
   customizationOptions: [],
   specifications: [],
   wholesaleTiers: [],
+  enterpriseTiers: [],
+  packagingUnits: [],
+  barcode: '',
+  lowStockThreshold: '10',
+  customizationLeadDays: '3',
 }
 
 export const PRODUCT_FORM_SECTIONS = [
   { id: 'section-basic', label: 'Thông tin sản phẩm' },
   { id: 'section-media', label: 'Hình ảnh' },
   { id: 'section-pricing', label: 'Giá & tồn kho' },
-  { id: 'section-wholesale', label: 'Giá sỉ' },
+  { id: 'section-wholesale', label: 'Giá sỉ / B2B' },
+  { id: 'section-packaging', label: 'Quy cách đóng gói' },
   { id: 'section-specs', label: 'Thông số kỹ thuật' },
   { id: 'section-promo', label: 'Khuyến mãi & tùy chỉnh' },
 ] as const
@@ -159,6 +176,15 @@ export function buildProductFormState(product: Product | null): ProductFormState
     customizationOptions: normalizeCustomizationOptionsForForm(product.customizationOptions),
     specifications: specificationsToRows(product.specifications),
     wholesaleTiers: wholesaleToRows(product.wholesalePrice),
+    enterpriseTiers: wholesaleToRows(product.groupPrices?.enterprise),
+    packagingUnits: (product.packagingUnits ?? []).map((unit) => ({
+      label: unit.label,
+      qtyPerUnit: String(unit.qtyPerUnit),
+      price: unit.price != null ? String(unit.price) : '',
+    })),
+    barcode: product.barcode ?? '',
+    lowStockThreshold: String(product.lowStockThreshold ?? 10),
+    customizationLeadDays: String(product.customizationLeadDays ?? 3),
   }
 }
 
@@ -193,6 +219,23 @@ export function buildProductPayload(form: ProductFormState): Partial<Product> {
     }))
     .filter((tier) => Number.isFinite(tier.minQty) && tier.minQty > 0 && Number.isFinite(tier.price))
 
+  const enterpriseTiers: WholesalePrice[] = form.enterpriseTiers
+    .filter((tier) => tier.minQty && tier.price)
+    .map((tier) => ({
+      minQty: Number(tier.minQty),
+      price: Number(tier.price),
+    }))
+    .filter((tier) => Number.isFinite(tier.minQty) && tier.minQty > 0 && Number.isFinite(tier.price))
+
+  const packagingUnits = form.packagingUnits
+    .filter((row) => row.label && row.qtyPerUnit)
+    .map((row) => ({
+      label: row.label.trim(),
+      qtyPerUnit: Number(row.qtyPerUnit),
+      price: row.price ? Number(row.price) : null,
+    }))
+    .filter((row) => Number.isFinite(row.qtyPerUnit) && row.qtyPerUnit > 0)
+
   return {
     name: form.name,
     sku: form.sku,
@@ -219,5 +262,13 @@ export function buildProductPayload(form: ProductFormState): Partial<Product> {
     customizationOptions,
     specifications: rowsToSpecifications(form.specifications),
     wholesalePrice,
+    groupPrices: {
+      wholesale: wholesalePrice,
+      enterprise: enterpriseTiers,
+    },
+    packagingUnits,
+    barcode: form.barcode.trim() || null,
+    lowStockThreshold: Number(form.lowStockThreshold) || 10,
+    customizationLeadDays: Number(form.customizationLeadDays) || 3,
   }
 }

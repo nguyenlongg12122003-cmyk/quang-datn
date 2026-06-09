@@ -21,6 +21,12 @@ export const queryKeys = {
   orders: {
     mine: ['orders', 'mine'] as const,
   },
+  business: {
+    me: ['business', 'me'] as const,
+  },
+  quotations: {
+    mine: ['quotations', 'mine'] as const,
+  },
   chat: {
     support: ['chat', 'support', 'me'] as const,
     ai: ['chat', 'ai'] as const,

@@ -13,6 +13,7 @@ import { EmptyState } from '@/components/common/EmptyState'
 import { AddressFormDialog } from '@/features/account/AddressFormDialog'
 import { VoucherInput, type AppliedVoucher } from '@/features/vouchers/VoucherInput'
 import { useCreateOrder } from '@/features/orders/api'
+import { useBusinessProfile } from '@/features/business/api'
 import { useCartStore, selectCartSubtotal, cartItemTotal } from '@/stores/cart-store'
 import { useAuthStore } from '@/stores/auth-store'
 import { formatCurrency } from '@/lib/format'
@@ -32,6 +33,10 @@ export function CheckoutPage() {
   const clearCart = useCartStore((s) => s.clear)
   const user = useAuthStore((s) => s.user)
   const createOrder = useCreateOrder()
+  const { data: businessData } = useBusinessProfile()
+  const canUseCredit = Boolean(
+    businessData?.profile?.status === 'approved' && businessData.profile.paymentTermDays > 0,
+  )
 
   const addresses = user?.addresses ?? []
   const defaultAddressId = addresses.find((a) => a.isDefault)?.id ?? addresses[0]?.id
@@ -42,6 +47,7 @@ export function CheckoutPage() {
   const [note, setNote] = useState('')
   const [voucher, setVoucher] = useState<AppliedVoucher | null>(null)
   const [addressDialog, setAddressDialog] = useState(false)
+  const [requestInvoice, setRequestInvoice] = useState(false)
 
   const selectedAddress = addresses.find((a) => a.id === addressId)
   const shippingOption = SHIPPING_OPTIONS.find((s) => s.value === shipping)!
@@ -57,6 +63,8 @@ export function CheckoutPage() {
         productImage: i.image,
         price: i.unitPrice,
         quantity: i.quantity,
+        packagingUnit: i.packagingUnit,
+        packagingQty: i.packagingQty,
         customization: i.customization ?? undefined,
       })),
     [items],
@@ -70,9 +78,19 @@ export function CheckoutPage() {
     )
   }
 
+  const exceedsCredit =
+    canUseCredit &&
+    payment === 'credit' &&
+    businessData?.availableCredit != null &&
+    total > businessData.availableCredit
+
   const submit = () => {
     if (!selectedAddress) {
       toast.error('Vui lòng chọn địa chỉ giao hàng')
+      return
+    }
+    if (exceedsCredit) {
+      toast.error('Đơn hàng vượt hạn mức công nợ còn lại')
       return
     }
     const shippingAddress: Address = selectedAddress
@@ -84,10 +102,15 @@ export function CheckoutPage() {
         shippingMethod: shipping,
         voucherCode: voucher?.voucher.code,
         note: note.trim() || undefined,
-        subtotal,
         shippingFee,
         discount,
-        total,
+        invoiceInfo: requestInvoice
+          ? {
+              taxCode: businessData?.profile?.taxCode ?? undefined,
+              companyName: businessData?.profile?.companyName,
+              invoiceAddress: businessData?.profile?.invoiceAddress ?? undefined,
+            }
+          : undefined,
       },
       {
         onSuccess: (result) => {
@@ -189,9 +212,11 @@ export function CheckoutPage() {
             <CardHeader>
               <CardTitle className="text-base">Phương thức thanh toán</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-3">
               <RadioGroup value={payment} onValueChange={(v) => setPayment(v as PaymentMethod)} className="space-y-2">
-                {(Object.keys(PAYMENT_METHOD_LABELS) as PaymentMethod[]).map((method) => (
+                {(Object.keys(PAYMENT_METHOD_LABELS) as PaymentMethod[])
+                  .filter((method) => method !== 'credit' || canUseCredit)
+                  .map((method) => (
                   <label
                     key={method}
                     className={cn(
@@ -204,8 +229,40 @@ export function CheckoutPage() {
                   </label>
                 ))}
               </RadioGroup>
+              {canUseCredit && businessData?.availableCredit != null ? (
+                <p className={cn(
+                  'rounded-lg border p-3 text-sm',
+                  total > businessData.availableCredit
+                    ? 'border-destructive/40 bg-destructive/5 text-destructive'
+                    : 'border-border bg-muted/40 text-muted-foreground',
+                )}>
+                  Hạn mức công nợ còn lại: <span className="font-medium text-foreground">{formatCurrency(businessData.availableCredit)}</span>
+                  {businessData.outstandingCredit != null && businessData.outstandingCredit > 0 ? (
+                    <> · Đang nợ: {formatCurrency(businessData.outstandingCredit)}</>
+                  ) : null}
+                  {total > businessData.availableCredit ? (
+                    <span className="mt-1 block">Đơn hàng vượt hạn mức còn lại. Vui lòng chọn phương thức khác hoặc giảm giá trị đơn.</span>
+                  ) : null}
+                </p>
+              ) : null}
             </CardContent>
           </Card>
+
+          {businessData?.profile?.status === 'approved' ? (
+            <Card>
+              <CardHeader><CardTitle className="text-base">Hóa đơn VAT</CardTitle></CardHeader>
+              <CardContent>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={requestInvoice}
+                    onChange={(e) => setRequestInvoice(e.target.checked)}
+                  />
+                  Yêu cầu xuất hóa đơn VAT cho đơn hàng này
+                </label>
+              </CardContent>
+            </Card>
+          ) : null}
 
           {/* Note */}
           <Card>
@@ -251,7 +308,7 @@ export function CheckoutPage() {
               <span className="font-semibold">Tổng cộng</span>
               <span className="text-xl font-bold text-primary">{formatCurrency(total)}</span>
             </div>
-            <Button className="w-full" size="lg" onClick={submit} disabled={createOrder.isPending}>
+            <Button className="w-full" size="lg" onClick={submit} disabled={createOrder.isPending || exceedsCredit}>
               {createOrder.isPending ? 'Đang xử lý…' : 'Đặt hàng'}
             </Button>
             <p className="text-center text-xs text-muted-foreground">

@@ -1,4 +1,5 @@
-import { Download, MapPin, MessageSquare, Package, Palette, RotateCcw, Truck } from 'lucide-react'
+import { Link } from 'react-router'
+import { Download, FileText, MapPin, MessageSquare, Package, Palette, RotateCcw, Truck } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -6,6 +7,7 @@ import { Separator } from '@/components/ui/separator'
 import { OrderStatusBadge } from '@/components/common/OrderStatusBadge'
 import { formatCurrency, formatDateTime } from '@/lib/format'
 import {
+  CUSTOMIZATION_STATUS_LABELS,
   ORDER_STATUS_LABELS,
   PAYMENT_METHOD_LABELS,
   PAYMENT_STATUS_LABELS,
@@ -13,6 +15,10 @@ import {
   SHIPPING_CARRIER_LABELS,
   SHIPPING_OPTIONS,
 } from '@/lib/constants'
+import { useUpdateCustomizationStatus } from '@/features/orders/api'
+import { toast } from 'sonner'
+import { getErrorMessage } from '@/lib/api/axios'
+import type { CustomizationStatus } from '@/types'
 import {
   hasPackingSlipPrinted,
   hasPendingReturn,
@@ -117,6 +123,14 @@ export function OrderDetailHeader({ order }: { order: Order }) {
             label={order.shippingCarrier ? SHIPPING_CARRIER_LABELS[order.shippingCarrier] : 'Vận đơn'}
             value={order.trackingNumber}
           />
+        ) : null}
+        {order.quotationId ? (
+          <Button asChild variant="outline" size="sm" className="h-8 gap-1.5">
+            <Link to="/quotations">
+              <FileText className="size-3.5" />
+              Báo giá {order.quotationId}
+            </Link>
+          </Button>
         ) : null}
       </div>
     </div>
@@ -308,8 +322,20 @@ function OrderItemRow({
   item: OrderItem
   isLast: boolean
 }) {
+  const updateCustomization = useUpdateCustomizationStatus()
   const customization = item.customization
   const isImagePrint = customization?.inputType === 'image' && Boolean(customization.text)
+
+  const setCustomizationStatus = (status: CustomizationStatus) => {
+    if (!item.id) return
+    updateCustomization.mutate(
+      { orderId, itemId: item.id, status },
+      {
+        onSuccess: () => toast.success('Đã cập nhật trạng thái tùy chỉnh'),
+        onError: (err) => toast.error(getErrorMessage(err)),
+      },
+    )
+  }
 
   return (
     <div className={cn('pb-3', !isLast && 'border-b border-border/60')}>
@@ -338,14 +364,22 @@ function OrderItemRow({
           </div>
           <p className="text-xs text-muted-foreground">
             {formatCurrency(item.price)} × {item.quantity}
+            {item.packagingUnit ? ` · ${item.packagingQty} ${item.packagingUnit}` : ''}
             {customization?.extraPrice ? ` · +${formatCurrency(customization.extraPrice)} tùy chỉnh` : ''}
           </p>
 
           {customization ? (
             <div className="rounded-md bg-muted/50 px-2.5 py-2 text-xs">
-              <p className="font-medium text-foreground">
-                Tùy chỉnh: {customization.type}
-              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="font-medium text-foreground">
+                  Tùy chỉnh: {customization.type}
+                </p>
+                {item.customizationStatus ? (
+                  <Badge variant="outline">
+                    {CUSTOMIZATION_STATUS_LABELS[item.customizationStatus]}
+                  </Badge>
+                ) : null}
+              </div>
 
               {customization.inputType === 'text' && customization.text ? (
                 <p className="mt-1 text-muted-foreground">
@@ -387,6 +421,23 @@ function OrderItemRow({
 
               {customization.inputType === 'text' && !customization.text ? (
                 <p className="mt-1 text-muted-foreground">Khách chưa nhập nội dung in.</p>
+              ) : null}
+
+              {item.id ? (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  <Button type="button" size="sm" variant="secondary" className="h-7 px-2" onClick={() => setCustomizationStatus('approved')}>
+                    Duyệt mẫu
+                  </Button>
+                  <Button type="button" size="sm" variant="outline" className="h-7 px-2" onClick={() => setCustomizationStatus('rejected')}>
+                    Từ chối
+                  </Button>
+                  <Button type="button" size="sm" variant="outline" className="h-7 px-2" onClick={() => setCustomizationStatus('in_production')}>
+                    Sản xuất
+                  </Button>
+                  <Button type="button" size="sm" variant="outline" className="h-7 px-2" onClick={() => setCustomizationStatus('completed')}>
+                    Hoàn tất
+                  </Button>
+                </div>
               ) : null}
             </div>
           ) : null}

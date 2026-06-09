@@ -16,7 +16,7 @@ router.get('/stats', authMiddleware, adminMiddleware, async (_req, res, next) =>
       pool.request().query('SELECT COUNT(1) AS totalProducts FROM dbo.products'),
       pool.request().query("SELECT COUNT(1) AS totalCustomers FROM dbo.users WHERE role = 'customer'"),
       pool.request().query("SELECT COUNT(1) AS pendingOrders FROM dbo.orders WHERE status = 'pending'"),
-      pool.request().query('SELECT COUNT(1) AS lowStockProducts FROM dbo.products WHERE stock < 100'),
+      pool.request().query('SELECT COUNT(1) AS lowStockProducts FROM dbo.products WHERE stock <= lowStockThreshold AND [status] = \'active\''),
       // Orders by status for pie chart
       pool.request().query(`
         SELECT [status], COUNT(1) AS [count]

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { orderApi, type AdminOrderQuery, type UpdateOrderStatusPayload } from '@/lib/api/endpoints/orders'
+import type { CustomizationStatus } from '@/types'
 import { queryKeys } from '@/lib/query/keys'
 
 export function useAdminOrders(query: AdminOrderQuery) {
@@ -36,6 +37,27 @@ export function useMarkPackingSlipPrinted() {
     onSuccess: (_result, id) => {
       queryClient.invalidateQueries({ queryKey: ['orders', 'admin'] })
       queryClient.invalidateQueries({ queryKey: queryKeys.orders.adminDetail(id) })
+    },
+  })
+}
+
+export function useUpdateCustomizationStatus() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      orderId,
+      itemId,
+      status,
+      note,
+    }: {
+      orderId: string
+      itemId: number
+      status: CustomizationStatus
+      note?: string
+    }) => orderApi.updateCustomizationStatus(orderId, itemId, { status, note }),
+    onSuccess: (_result, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['orders', 'admin'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.orders.adminDetail(variables.orderId) })
     },
   })
 }

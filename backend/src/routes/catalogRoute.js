@@ -2,6 +2,7 @@ const express = require('express');
 const { getPool, sql } = require('../libs/db');
 const { mapProductRow } = require('../utils/mapRows');
 const { authMiddleware, adminMiddleware } = require('../middlewares/authMiddleware');
+const { setProductStockAbsolute } = require('../services/inventoryService');
 
 const router = express.Router();
 
@@ -276,6 +277,8 @@ router.post('/products', authMiddleware, adminMiddleware, async (req, res, next)
       isFlashSale = false, flashSaleEnd = null, flashSalePrice = null,
       isCustomizable = false, customizationOptions = [],
       wholesalePrice = [], status = 'active',
+      barcode = null, lowStockThreshold = 10, packagingUnits = [],
+      groupPrices = {}, customizationLeadDays = 3,
     } = req.body;
 
     if (!name || !sku || !categoryId || !brandId || !price || !originalPrice) {
@@ -311,6 +314,11 @@ router.post('/products', authMiddleware, adminMiddleware, async (req, res, next)
       .input('isCustomizable', sql.Bit, Boolean(isCustomizable))
       .input('customizationOptions', sql.NVarChar(sql.MAX), JSON.stringify(customizationOptions))
       .input('wholesalePrice', sql.NVarChar(sql.MAX), JSON.stringify(wholesalePrice))
+      .input('barcode', sql.NVarChar, barcode || null)
+      .input('lowStockThreshold', sql.Int, Number(lowStockThreshold) || 10)
+      .input('packagingUnits', sql.NVarChar(sql.MAX), JSON.stringify(packagingUnits))
+      .input('groupPrices', sql.NVarChar(sql.MAX), JSON.stringify(groupPrices))
+      .input('customizationLeadDays', sql.Int, Number(customizationLeadDays) || 3)
       .input('status', sql.NVarChar, status)
       .query(`
         INSERT INTO dbo.products (
@@ -319,6 +327,7 @@ router.post('/products', authMiddleware, adminMiddleware, async (req, res, next)
           stock, sold, rating, reviewCount, reviews,
           colors, tags, isFlashSale, flashSaleEnd, flashSalePrice,
           isCustomizable, customizationOptions, wholesalePrice,
+          barcode, lowStockThreshold, packagingUnits, groupPrices, customizationLeadDays,
           createdAt, [status]
         )
         VALUES (
@@ -327,6 +336,7 @@ router.post('/products', authMiddleware, adminMiddleware, async (req, res, next)
           @stock, 0, 0, 0, '[]',
           @colors, @tags, @isFlashSale, @flashSaleEnd, @flashSalePrice,
           @isCustomizable, @customizationOptions, @wholesalePrice,
+          @barcode, @lowStockThreshold, @packagingUnits, @groupPrices, @customizationLeadDays,
           SYSUTCDATETIME(), @status
         )
       `);
@@ -348,9 +358,36 @@ router.put('/products/:id', authMiddleware, adminMiddleware, async (req, res, ne
       isFlashSale, flashSaleEnd, flashSalePrice,
       isCustomizable, customizationOptions,
       wholesalePrice, status,
+      barcode, lowStockThreshold, packagingUnits, groupPrices, customizationLeadDays,
     } = req.body;
 
     const pool = await getPool();
+
+    if (stock != null) {
+      const currentResult = await pool.request()
+        .input('id', sql.NVarChar, id)
+        .query('SELECT TOP 1 stock FROM dbo.products WHERE id = @id');
+      const currentStock = Number(currentResult.recordset[0]?.stock ?? 0);
+      const nextStock = Number(stock);
+      if (Number.isFinite(nextStock) && nextStock !== currentStock) {
+        const stockTransaction = new sql.Transaction(pool);
+        await stockTransaction.begin();
+        try {
+          const stockRequest = new sql.Request(stockTransaction);
+          await setProductStockAbsolute(stockRequest, {
+            productId: id,
+            targetStock: nextStock,
+            reason: 'Cập nhật từ form sản phẩm',
+            createdBy: req.user.userId,
+          });
+          await stockTransaction.commit();
+        } catch (stockError) {
+          await stockTransaction.rollback();
+          throw stockError;
+        }
+      }
+    }
+
     await pool.request()
       .input('id', sql.NVarChar, id)
       .input('name', sql.NVarChar, name || null)
@@ -372,6 +409,11 @@ router.put('/products/:id', authMiddleware, adminMiddleware, async (req, res, ne
       .input('isCustomizable', sql.Bit, isCustomizable != null ? Boolean(isCustomizable) : null)
       .input('customizationOptions', sql.NVarChar(sql.MAX), customizationOptions ? JSON.stringify(customizationOptions) : null)
       .input('wholesalePrice', sql.NVarChar(sql.MAX), wholesalePrice ? JSON.stringify(wholesalePrice) : null)
+      .input('barcode', sql.NVarChar, barcode !== undefined ? barcode : null)
+      .input('lowStockThreshold', sql.Int, lowStockThreshold != null ? Number(lowStockThreshold) : null)
+      .input('packagingUnits', sql.NVarChar(sql.MAX), packagingUnits ? JSON.stringify(packagingUnits) : null)
+      .input('groupPrices', sql.NVarChar(sql.MAX), groupPrices ? JSON.stringify(groupPrices) : null)
+      .input('customizationLeadDays', sql.Int, customizationLeadDays != null ? Number(customizationLeadDays) : null)
       .input('status', sql.NVarChar, status || null)
       .query(`
         UPDATE dbo.products SET
@@ -394,6 +436,11 @@ router.put('/products/:id', authMiddleware, adminMiddleware, async (req, res, ne
           isCustomizable      = COALESCE(@isCustomizable, isCustomizable),
           customizationOptions= COALESCE(@customizationOptions, customizationOptions),
           wholesalePrice      = COALESCE(@wholesalePrice, wholesalePrice),
+          barcode             = COALESCE(@barcode, barcode),
+          lowStockThreshold   = COALESCE(@lowStockThreshold, lowStockThreshold),
+          packagingUnits      = COALESCE(@packagingUnits, packagingUnits),
+          groupPrices         = COALESCE(@groupPrices, groupPrices),
+          customizationLeadDays = COALESCE(@customizationLeadDays, customizationLeadDays),
           [status]            = COALESCE(@status, [status])
         WHERE id = @id
       `);
@@ -423,11 +470,23 @@ router.patch('/products/:id/stock', authMiddleware, adminMiddleware, async (req,
       return res.status(400).json({ message: 'Valid stock value required' });
     }
     const pool = await getPool();
-    await pool.request()
-      .input('id', sql.NVarChar, req.params.id)
-      .input('stock', sql.Int, stock)
-      .query('UPDATE dbo.products SET stock = @stock WHERE id = @id');
-    return res.json({ message: 'Stock updated' });
+    const transaction = new sql.Transaction(pool);
+    await transaction.begin();
+
+    try {
+      const request = new sql.Request(transaction);
+      const result = await setProductStockAbsolute(request, {
+        productId: req.params.id,
+        targetStock: Number(stock),
+        reason: 'Cập nhật tồn kho trực tiếp',
+        createdBy: req.user.userId,
+      });
+      await transaction.commit();
+      return res.json({ message: 'Stock updated', ...result });
+    } catch (innerError) {
+      await transaction.rollback();
+      throw innerError;
+    }
   } catch (error) {
     return next(error);
   }

@@ -18,6 +18,7 @@ import { QuantityStepper } from '@/components/common/QuantityStepper'
 import { ImageUploader } from '@/components/common/ImageUploader'
 import { formatCurrency, formatNumber } from '@/lib/format'
 import {
+  getPackagingUnitPrice,
   getUnitPriceForQty,
   isFlashSaleActive,
   normalizeCustomizationOptions,
@@ -38,11 +39,14 @@ interface PurchasePanelProps {
 export function PurchasePanel({ product }: PurchasePanelProps) {
   const addItem = useCartStore((s) => s.addItem)
   const token = useAuthStore((s) => s.token)
+  const customerType = useAuthStore((s) => s.user?.customerType ?? 'retail')
   const wishlistIds = useWishlistIds()
   const addWishlist = useAddToWishlist()
   const removeWishlist = useRemoveFromWishlist()
 
   const [quantity, setQuantity] = useState(1)
+  const [packagingUnit, setPackagingUnit] = useState<string>('')
+  const [packagingQty, setPackagingQty] = useState(1)
   const [color, setColor] = useState<string | undefined>(product.colors?.[0])
   const [optionLabel, setOptionLabel] = useState<string>('')
   const [customText, setCustomText] = useState('')
@@ -53,7 +57,13 @@ export function PurchasePanel({ product }: PurchasePanelProps) {
   )
   const selectedOption = options.find((o) => o.label === optionLabel)
 
-  const unitPrice = getUnitPriceForQty(product, quantity)
+  const effectiveQty = packagingUnit
+    ? (product.packagingUnits?.find((u) => u.label === packagingUnit)?.qtyPerUnit ?? 1) * packagingQty
+    : quantity
+  const unitPrice = packagingUnit
+    ? (getPackagingUnitPrice(product, packagingUnit, packagingQty, customerType) ??
+      getUnitPriceForQty(product, effectiveQty, customerType))
+    : getUnitPriceForQty(product, quantity, customerType)
   const inWishlist = wishlistIds.has(product.id)
   const outOfStock = product.stock <= 0
 
@@ -86,8 +96,10 @@ export function PurchasePanel({ product }: PurchasePanelProps) {
         stock: product.stock,
         image: product.images?.[0]?.url,
         unitPrice,
+        packagingUnit: packagingUnit || null,
+        packagingQty: packagingUnit ? packagingQty : 1,
       },
-      quantity,
+      packagingUnit ? effectiveQty : quantity,
       buildCustomization(),
     )
     toast.success('Đã thêm vào giỏ hàng')
@@ -103,7 +115,7 @@ export function PurchasePanel({ product }: PurchasePanelProps) {
   }
 
   const extraPrice = selectedOption?.extraPrice ?? 0
-  const lineTotal = (unitPrice + extraPrice) * quantity
+  const lineTotal = (unitPrice + extraPrice) * (packagingUnit ? effectiveQty : quantity)
   const onSale =
     product.originalPrice != null && product.originalPrice > unitPrice
 
@@ -213,11 +225,50 @@ export function PurchasePanel({ product }: PurchasePanelProps) {
         </div>
       ) : null}
 
-      <div className="flex items-center gap-3">
-        <Label>Số lượng</Label>
-        <QuantityStepper value={quantity} onChange={setQuantity} max={Math.max(1, product.stock)} />
-        <span className="text-sm text-muted-foreground">{product.stock} có sẵn</span>
-      </div>
+      {product.packagingUnits && product.packagingUnits.length > 0 ? (
+        <div className="space-y-2 rounded-lg border border-border p-3">
+          <Label>Quy cách đóng gói</Label>
+          <Select
+            value={packagingUnit || '__retail__'}
+            onValueChange={(v) => {
+              if (v === '__retail__') {
+                setPackagingUnit('')
+                setPackagingQty(1)
+                return
+              }
+              setPackagingUnit(v)
+              setPackagingQty(1)
+            }}
+          >
+            <SelectTrigger><SelectValue placeholder="Chọn quy cách" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__retail__">Mua lẻ (từng sản phẩm)</SelectItem>
+              {product.packagingUnits.map((unit) => (
+                <SelectItem key={unit.label} value={unit.label}>
+                  {unit.label} ({unit.qtyPerUnit} sp/{unit.label.toLowerCase()})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {packagingUnit ? (
+            <div className="flex items-center gap-3">
+              <Label>Số {packagingUnit.toLowerCase()}</Label>
+              <QuantityStepper value={packagingQty} onChange={setPackagingQty} max={99} />
+              <span className="text-sm text-muted-foreground">= {effectiveQty} sản phẩm</span>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {!packagingUnit ? (
+        <div className="flex items-center gap-3">
+          <Label>Số lượng</Label>
+          <QuantityStepper value={quantity} onChange={setQuantity} max={Math.max(1, product.stock)} />
+          <span className="text-sm text-muted-foreground">{product.stock} có sẵn</span>
+        </div>
+      ) : (
+        <p className="text-sm text-muted-foreground">Tồn kho: {product.stock} sản phẩm</p>
+      )}
 
       <div className="flex items-center justify-between rounded-lg bg-muted p-3">
         <span className="text-sm text-muted-foreground">Tạm tính</span>

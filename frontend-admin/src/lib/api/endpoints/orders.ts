@@ -1,5 +1,5 @@
 import { api } from '@/lib/api/axios'
-import type { Order, OrderStatus, PaymentMethod, PaymentStatus, ShippingCarrier } from '@/types'
+import type { CustomizationStatus, Order, OrderStatus, PaymentMethod, PaymentStatus, ShippingCarrier } from '@/types'
 
 export type OrderSort = 'newest' | 'oldest' | 'total_desc' | 'total_asc'
 
@@ -57,5 +57,13 @@ export const orderApi = {
   resolveReturn: (id: string, action: 'approved' | 'rejected', note?: string) =>
     api
       .patch<{ message: string }>(`/orders/${id}/return`, { action, note })
+      .then((r) => r.data),
+  updateCustomizationStatus: (
+    orderId: string,
+    itemId: number,
+    payload: { status: CustomizationStatus; note?: string },
+  ) =>
+    api
+      .patch<{ message: string }>(`/orders/${orderId}/items/${itemId}/customization`, payload)
       .then((r) => r.data),
 }

@@ -8,9 +8,9 @@ export function isFlashSaleActive(
   return new Date(product.flashSaleEnd).getTime() > Date.now()
 }
 
-export function getStockStatus(stock: number): 'out' | 'low' | 'ok' {
+export function getStockStatus(stock: number, threshold = 10): 'out' | 'low' | 'ok' {
   if (stock <= 0) return 'out'
-  if (stock < 100) return 'low'
+  if (stock <= threshold) return 'low'
   return 'ok'
 }
 

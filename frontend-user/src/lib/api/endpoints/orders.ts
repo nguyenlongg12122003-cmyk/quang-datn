@@ -8,16 +8,24 @@ import type {
 } from '@/types'
 
 export interface CreateOrderPayload {
-  items: Array<Omit<OrderItem, 'productImage'> & { productImage?: string }>
+  items: Array<
+    Omit<OrderItem, 'productImage'> & {
+      productImage?: string
+      packagingUnit?: string | null
+      packagingQty?: number
+    }
+  >
   shippingAddress: Order['shippingAddress']
   paymentMethod: PaymentMethod
   shippingMethod: ShippingMethod
   voucherCode?: string
   note?: string
-  subtotal: number
+  quotationId?: string
+  invoiceInfo?: Order['invoiceInfo']
+  subtotal?: number
   shippingFee: number
   discount: number
-  total: number
+  total?: number
 }
 
 export interface CreateOrderResult {
@@ -26,6 +34,8 @@ export interface CreateOrderResult {
   paymentMethod?: PaymentMethod
   paymentStatus?: string
   paymentUrl?: string
+  estimatedDeliveryDate?: string
+  hasCustomItems?: boolean
 }
 
 export const orderApi = {

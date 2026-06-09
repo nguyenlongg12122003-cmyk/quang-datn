@@ -320,7 +320,7 @@ export function AdminProductsPage() {
               </TableHeader>
               <TableBody>
                 {products.map((product) => {
-                  const stockStatus = getStockStatus(product.stock)
+                  const stockStatus = getStockStatus(product.stock, product.lowStockThreshold ?? 10)
 
                   return (
                     <TableRow key={product.id}>
@@ -404,7 +404,7 @@ export function AdminProductsPage() {
 
           <div className="space-y-3 md:hidden">
             {products.map((product) => {
-              const stockStatus = getStockStatus(product.stock)
+              const stockStatus = getStockStatus(product.stock, product.lowStockThreshold ?? 10)
 
               return (
                 <AdminDataPanel key={product.id} className="p-4">

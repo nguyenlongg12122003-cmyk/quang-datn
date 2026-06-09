@@ -21,6 +21,7 @@ const OrdersPage = lazy(() => import('@/pages/OrdersPage').then((m) => ({ defaul
 const WishlistPage = lazy(() => import('@/pages/WishlistPage').then((m) => ({ default: m.WishlistPage })))
 const AccountPage = lazy(() => import('@/pages/AccountPage').then((m) => ({ default: m.AccountPage })))
 const MyVouchersPage = lazy(() => import('@/pages/MyVouchersPage').then((m) => ({ default: m.MyVouchersPage })))
+const QuotationsPage = lazy(() => import('@/pages/QuotationsPage').then((m) => ({ default: m.QuotationsPage })))
 const PaymentReturnPage = lazy(() => import('@/pages/PaymentReturnPage').then((m) => ({ default: m.PaymentReturnPage })))
 
 function PageFallback() {
@@ -58,6 +59,7 @@ function AppRoutes() {
             <Route path="wishlist" element={<WishlistPage />} />
             <Route path="account" element={<AccountPage />} />
             <Route path="my-vouchers" element={<MyVouchersPage />} />
+            <Route path="quotations" element={<QuotationsPage />} />
           </Route>
         </Route>
 

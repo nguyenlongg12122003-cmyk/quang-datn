@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { ShoppingCart, Trash2 } from 'lucide-react'
+import { FileText, ShoppingCart, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
@@ -13,14 +15,22 @@ import {
   useCartStore,
 } from '@/stores/cart-store'
 import { useAuthStore } from '@/stores/auth-store'
+import { useBusinessProfile } from '@/features/business/api'
+import { useCreateQuotation } from '@/features/quotations/api'
+import { CreateQuotationDialog } from '@/features/quotations/CreateQuotationDialog'
+import { getErrorMessage } from '@/lib/api/axios'
 
 export function CartPage() {
   const navigate = useNavigate()
+  const [quoteDialogOpen, setQuoteDialogOpen] = useState(false)
   const items = useCartStore((s) => s.items)
   const updateQuantity = useCartStore((s) => s.updateQuantity)
   const removeItem = useCartStore((s) => s.removeItem)
   const subtotal = useCartStore(selectCartSubtotal)
   const token = useAuthStore((s) => s.token)
+  const { data: business } = useBusinessProfile()
+  const createQuotation = useCreateQuotation()
+  const canQuote = business?.profile?.status === 'approved'
 
   if (items.length === 0) {
     return (
@@ -131,9 +141,55 @@ export function CartPage() {
             <Button className="w-full" size="lg" onClick={handleCheckout}>
               Tiến hành thanh toán
             </Button>
+            {canQuote ? (
+              <Button
+                className="w-full"
+                variant="outline"
+                onClick={() => {
+                  if (!token) {
+                    navigate('/login', { state: { from: '/cart' } })
+                    return
+                  }
+                  setQuoteDialogOpen(true)
+                }}
+                disabled={createQuotation.isPending}
+              >
+                <FileText className="mr-2 size-4" />
+                Tạo báo giá B2B
+              </Button>
+            ) : null}
           </CardContent>
         </Card>
       </div>
+
+      <CreateQuotationDialog
+        open={quoteDialogOpen}
+        onOpenChange={setQuoteDialogOpen}
+        subtotal={subtotal}
+        isPending={createQuotation.isPending}
+        onSubmit={(options) => {
+          createQuotation.mutate(
+            {
+              ...options,
+              items: items.map((i) => ({
+                productId: i.productId,
+                quantity: i.quantity,
+                packagingUnit: i.packagingUnit ?? undefined,
+                packagingQty: i.packagingQty,
+                customization: i.customization ?? undefined,
+              })),
+            },
+            {
+              onSuccess: () => {
+                toast.success('Đã tạo báo giá')
+                setQuoteDialogOpen(false)
+                navigate('/quotations')
+              },
+              onError: (err) => toast.error(getErrorMessage(err)),
+            },
+          )
+        }}
+      />
     </PageContainer>
   )
 }

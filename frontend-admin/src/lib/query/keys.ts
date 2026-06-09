@@ -33,4 +33,14 @@ export const queryKeys = {
     stats: ['dashboard', 'stats'] as const,
     revenue: ['dashboard', 'revenue'] as const,
   },
+  business: {
+    list: (query?: { status?: string; q?: string }) => ['business', 'admin', query] as const,
+  },
+  quotations: {
+    list: (query?: { status?: string; q?: string }) => ['quotations', 'admin', query] as const,
+  },
+  inventory: {
+    movements: (query?: Record<string, unknown>) => ['inventory', 'movements', query] as const,
+    lowStock: ['inventory', 'low-stock'] as const,
+  },
 }

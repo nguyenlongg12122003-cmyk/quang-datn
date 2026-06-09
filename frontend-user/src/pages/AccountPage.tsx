@@ -4,6 +4,7 @@ import { PageContainer } from '@/components/layout/PageContainer'
 import { ProfileForm } from '@/features/account/ProfileForm'
 import { PasswordForm } from '@/features/account/PasswordForm'
 import { AddressList } from '@/features/account/AddressList'
+import { BusinessProfileForm } from '@/features/business/BusinessProfileForm'
 
 export function AccountPage() {
   return (
@@ -12,6 +13,7 @@ export function AccountPage() {
       <Tabs defaultValue="profile">
         <TabsList>
           <TabsTrigger value="profile">Hồ sơ</TabsTrigger>
+          <TabsTrigger value="business">Doanh nghiệp</TabsTrigger>
           <TabsTrigger value="addresses">Địa chỉ</TabsTrigger>
           <TabsTrigger value="password">Mật khẩu</TabsTrigger>
         </TabsList>
@@ -19,6 +21,13 @@ export function AccountPage() {
           <Card>
             <CardContent className="p-6">
               <ProfileForm />
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="business">
+          <Card>
+            <CardContent className="p-6">
+              <BusinessProfileForm />
             </CardContent>
           </Card>
         </TabsContent>

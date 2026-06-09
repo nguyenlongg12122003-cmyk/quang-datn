@@ -17,6 +17,10 @@ const dashboardRoute = require('./routes/dashboardRoute');
 const userRoute = require('./routes/userRoute');
 const chatRoute = require('./routes/chatRoute');
 const wishlistRoute = require('./routes/wishlistRoute');
+const businessRoute = require('./routes/businessRoute');
+const quotationRoute = require('./routes/quotationRoute');
+const inventoryRoute = require('./routes/inventoryRoute');
+const invoiceRoute = require('./routes/invoiceRoute');
 
 const { notFound, errorHandler } = require('./middlewares/errorMiddleware');
 
@@ -68,6 +72,10 @@ app.use('/api/dashboard', dashboardRoute);
 app.use('/api/users', userRoute);
 app.use('/api/chat', chatRoute);
 app.use('/api/wishlist', wishlistRoute);
+app.use('/api/business', businessRoute);
+app.use('/api/quotations', quotationRoute);
+app.use('/api/inventory', inventoryRoute);
+app.use('/api/invoices', invoiceRoute);
 
 app.use(notFound);
 app.use(errorHandler);

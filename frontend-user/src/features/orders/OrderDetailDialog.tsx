@@ -1,3 +1,4 @@
+import { Link } from 'react-router'
 import {
   Dialog,
   DialogContent,
@@ -10,12 +11,17 @@ import { OrderStatusBadge } from '@/components/common/OrderStatusBadge'
 import { Button } from '@/components/ui/button'
 import { formatCurrency, formatDateTime } from '@/lib/format'
 import {
+  CUSTOMIZATION_STATUS_LABELS,
   ORDER_STATUS_LABELS,
   PAYMENT_METHOD_LABELS,
   PAYMENT_STATUS_LABELS,
   SHIPPING_CARRIER_LABELS,
 } from '@/lib/constants'
-import { Download } from 'lucide-react'
+import { invoiceApi } from '@/lib/api/endpoints/invoices'
+import { openVatInvoicePrint } from '@/features/invoices/vat-invoice'
+import { formatDate } from '@/lib/format'
+import { Download, FileText } from 'lucide-react'
+import { toast } from 'sonner'
 import type { Order } from '@/types'
 
 interface OrderDetailDialogProps {
@@ -109,6 +115,11 @@ export function OrderDetailDialog({
                         {formatCurrency(item.price)} × {item.quantity}
                       </p>
 
+                      {item.packagingUnit ? (
+                        <p className="text-xs text-muted-foreground">
+                          Quy cách: {item.packagingQty} {item.packagingUnit}
+                        </p>
+                      ) : null}
                       {item.customization ? (
                         <div className="mt-1 flex items-center gap-2 text-xs">
                           <span className="inline-block rounded bg-secondary px-1.5 py-px font-medium text-foreground/80">
@@ -150,6 +161,11 @@ export function OrderDetailDialog({
                               </Button>
                             </div>
                           ) : null}
+                          {item.customizationStatus ? (
+                            <span className="rounded bg-muted px-1.5 py-0.5">
+                              {CUSTOMIZATION_STATUS_LABELS[item.customizationStatus]}
+                            </span>
+                          ) : null}
                         </div>
                       ) : null}
                     </div>
@@ -179,7 +195,45 @@ export function OrderDetailDialog({
                 {order.discount > 0 ? <Row label="Giảm giá" value={`−${formatCurrency(order.discount)}`} /> : null}
                 <Row label="Tổng cộng" value={formatCurrency(order.total)} bold />
                 <Row label="Thanh toán" value={`${PAYMENT_METHOD_LABELS[order.paymentMethod]} · ${PAYMENT_STATUS_LABELS[order.paymentStatus]}`} />
+                {order.paymentDueDate ? (
+                  <Row label="Hạn thanh toán" value={formatDate(order.paymentDueDate)} />
+                ) : null}
+                {order.estimatedDeliveryDate ? (
+                  <Row label="Dự kiến giao" value={formatDate(order.estimatedDeliveryDate)} />
+                ) : null}
+                {order.quotationId ? (
+                  <div className="flex items-center justify-between gap-2 pt-1">
+                    <span className="text-muted-foreground">Báo giá nguồn</span>
+                    <Button asChild variant="link" size="sm" className="h-auto px-0">
+                      <Link to="/quotations">{order.quotationId}</Link>
+                    </Button>
+                  </div>
+                ) : null}
               </section>
+
+              {['delivered', 'shipping', 'confirmed', 'processing'].includes(order.status) ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={async () => {
+                    try {
+                      const data = await invoiceApi.getByOrder(order.id)
+                      if (data.invoice) {
+                        openVatInvoicePrint(data.order, data.invoice)
+                        return
+                      }
+                      const created = await invoiceApi.createForOrder(order.id, { requestInvoice: true })
+                      openVatInvoicePrint(created.order, created.invoice)
+                    } catch {
+                      toast.error('Không thể xuất hóa đơn VAT')
+                    }
+                  }}
+                >
+                  <FileText className="size-4" />
+                  Xuất hóa đơn VAT
+                </Button>
+              ) : null}
 
               {order.timeline.length > 0 ? (
                 <>

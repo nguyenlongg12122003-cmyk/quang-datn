@@ -11,6 +11,8 @@ export interface CartItem {
   unitPrice: number
   stock: number
   quantity: number
+  packagingUnit?: string | null
+  packagingQty?: number
   customization?: OrderItemCustomization | null
 }
 
@@ -20,6 +22,8 @@ interface CartState {
     product: Pick<Product, 'id' | 'slug' | 'name' | 'stock'> & {
       image?: string
       unitPrice: number
+      packagingUnit?: string | null
+      packagingQty?: number
     },
     quantity: number,
     customization?: OrderItemCustomization | null,
@@ -29,10 +33,15 @@ interface CartState {
   clear: () => void
 }
 
-function buildLineId(productId: string, customization?: OrderItemCustomization | null): string {
-  if (!customization) return productId
+function buildLineId(
+  productId: string,
+  customization?: OrderItemCustomization | null,
+  packagingUnit?: string | null,
+): string {
+  const packKey = packagingUnit ? `::pack::${packagingUnit}` : ''
+  if (!customization) return `${productId}${packKey}`
 
-  const base = `${productId}::${customization.type}`
+  const base = `${productId}${packKey}::${customization.type}`
 
   // For image customizations, never put the full (often huge) base64 into the key.
   // Use a short fingerprint so identical uploads can still merge, but key stays small.
@@ -55,7 +64,7 @@ export const useCartStore = create<CartState>()(
       items: [],
       addItem: (product, quantity, customization) =>
         set((state) => {
-          const lineId = buildLineId(product.id, customization)
+          const lineId = buildLineId(product.id, customization, product.packagingUnit)
           const existing = state.items.find((i) => i.lineId === lineId)
           if (existing) {
             return {
@@ -75,6 +84,8 @@ export const useCartStore = create<CartState>()(
             unitPrice: product.unitPrice,
             stock: product.stock,
             quantity: Math.min(quantity, product.stock),
+            packagingUnit: product.packagingUnit ?? null,
+            packagingQty: product.packagingQty ?? 1,
             customization: customization ?? null,
           }
           return { items: [...state.items, item] }

@@ -3,6 +3,7 @@
 
 export type UserRole = 'customer' | 'staff' | 'admin'
 export type UserStatus = 'active' | 'locked'
+export type CustomerType = 'retail' | 'wholesale' | 'enterprise'
 
 export interface Address {
   id: string
@@ -23,6 +24,7 @@ export interface User {
   avatar?: string | null
   role: UserRole
   status: UserStatus
+  customerType?: CustomerType
   createdAt: string
   addresses: Address[]
 }
@@ -68,6 +70,93 @@ export interface WholesalePrice {
   price: number
 }
 
+export interface PackagingUnit {
+  label: string
+  qtyPerUnit: number
+  price?: number | null
+}
+
+export interface GroupPrices {
+  wholesale?: WholesalePrice[]
+  enterprise?: WholesalePrice[]
+}
+
+export type BusinessType = 'company' | 'school' | 'government' | 'other'
+export type BusinessStatus = 'pending' | 'approved' | 'rejected'
+
+export interface BusinessProfile {
+  userId: string
+  companyName: string
+  taxCode?: string | null
+  businessType: BusinessType
+  contactPerson: string
+  contactPhone?: string | null
+  contactEmail?: string | null
+  invoiceAddress?: string | null
+  creditLimit: number
+  paymentTermDays: number
+  status: BusinessStatus
+  approvedAt?: string | null
+  note?: string | null
+  createdAt: string
+}
+
+export type QuotationStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'converted' | 'expired'
+
+export interface QuotationItem {
+  id?: number
+  productId: string
+  productName: string
+  productImage?: string
+  sku?: string
+  unitPrice: number
+  quantity: number
+  packagingUnit?: string | null
+  packagingQty?: number
+  customization?: OrderItemCustomization | null
+}
+
+export interface Quotation {
+  id: string
+  userId: string
+  code: string
+  status: QuotationStatus
+  subtotal: number
+  discount: number
+  total: number
+  note?: string | null
+  validUntil: string
+  convertedOrderId?: string | null
+  createdAt: string
+  updatedAt: string
+  userName?: string
+  userEmail?: string
+  items: QuotationItem[]
+}
+
+export interface InvoiceInfo {
+  taxCode?: string
+  companyName?: string
+  invoiceAddress?: string
+  invoiceNumber?: string
+  vatRate?: number
+}
+
+export interface VatInvoice {
+  id: string
+  orderId: string
+  invoiceNumber: string
+  taxCode?: string | null
+  companyName?: string | null
+  invoiceAddress?: string | null
+  subtotal: number
+  vatRate: number
+  vatAmount: number
+  total: number
+  status: 'issued' | 'cancelled'
+  issuedAt: string
+}
+
 export type ProductStatus = 'active' | 'inactive' | 'draft'
 
 export interface Product {
@@ -96,6 +185,11 @@ export interface Product {
   isCustomizable?: boolean
   customizationOptions?: Array<CustomizationOption | string>
   wholesalePrice?: WholesalePrice[]
+  barcode?: string | null
+  lowStockThreshold?: number
+  packagingUnits?: PackagingUnit[]
+  groupPrices?: GroupPrices
+  customizationLeadDays?: number
   createdAt?: string
   status: ProductStatus
 }
@@ -149,13 +243,25 @@ export interface OrderItemCustomization {
   extraPrice?: number
 }
 
+export type CustomizationStatus =
+  | 'pending_review'
+  | 'approved'
+  | 'rejected'
+  | 'in_production'
+  | 'completed'
+
 export interface OrderItem {
+  id?: number
   productId: string
   productName: string
   productImage?: string
   price: number
   quantity: number
   customization?: OrderItemCustomization | null
+  customizationStatus?: CustomizationStatus | null
+  customizationNote?: string | null
+  packagingUnit?: string | null
+  packagingQty?: number
 }
 
 export type OrderStatus =
@@ -167,7 +273,7 @@ export type OrderStatus =
   | 'cancelled'
   | 'returned'
 
-export type PaymentMethod = 'cod' | 'vnpay' | 'payos'
+export type PaymentMethod = 'cod' | 'vnpay' | 'payos' | 'credit'
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded'
 export type ShippingMethod = 'standard' | 'express' | 'same_day'
 export type ShippingCarrier =
@@ -212,6 +318,12 @@ export interface Order {
   shippingCarrier?: ShippingCarrier | null
   trackingNumber?: string | null
   packingSlipPrintedAt?: string | null
+  quotationId?: string | null
+  paymentTermDays?: number | null
+  paymentDueDate?: string | null
+  invoiceInfo?: InvoiceInfo | null
+  estimatedDeliveryDate?: string | null
+  hasCustomItems?: boolean
   createdAt: string
   returnRequest?: ReturnRequest | null
   items: OrderItem[]

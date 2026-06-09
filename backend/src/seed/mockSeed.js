@@ -39,13 +39,73 @@ const brands = [
 ];
 
 const users = [
-  { id: 'user-1', email: 'phanquang@admin.com', name: 'Phan Quang Admin', phone: '0901234567', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=phanquang-admin', role: 'admin', status: 'active', createdAt: '2025-12-01T00:00:00Z' },
-  { id: 'user-2', email: 'phanquang@user.com', name: 'Phan Quang User', phone: '0912345678', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=phanquang-user', role: 'customer', status: 'active', createdAt: '2026-01-12T00:00:00Z' },
+  { id: 'user-1', email: 'phanquang@admin.com', name: 'Phan Quang Admin', phone: '0901234567', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=phanquang-admin', role: 'admin', status: 'active', customerType: 'retail', createdAt: '2025-12-01T00:00:00Z' },
+  { id: 'user-2', email: 'phanquang@user.com', name: 'Phan Quang User', phone: '0912345678', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=phanquang-user', role: 'customer', status: 'active', customerType: 'retail', createdAt: '2026-01-12T00:00:00Z' },
+  { id: 'user-3', email: 'abcwholesale@business.com', name: 'Nguyễn Văn Bình', phone: '0903111222', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=abc-wholesale', role: 'customer', status: 'active', customerType: 'wholesale', createdAt: '2026-02-10T00:00:00Z' },
+  { id: 'user-4', email: 'truongnguyendu@school.edu.vn', name: 'Trần Thị Chi', phone: '0904222333', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=truong-nguyen-du', role: 'customer', status: 'active', customerType: 'enterprise', createdAt: '2026-02-18T00:00:00Z' },
+  { id: 'user-5', email: 'pendingbiz@company.com', name: 'Lê Văn Dũng', phone: '0905333444', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=pending-biz', role: 'customer', status: 'active', customerType: 'retail', createdAt: '2026-05-20T00:00:00Z' },
+];
+
+const businessProfiles = [
+  {
+    userId: 'user-3',
+    companyName: 'Công ty TNHH VPP ABC',
+    taxCode: '0312345678',
+    businessType: 'company',
+    contactPerson: 'Nguyễn Văn Bình',
+    contactPhone: '0903111222',
+    contactEmail: 'abcwholesale@business.com',
+    invoiceAddress: 'Tầng 5, Tòa nhà ABC, 120 Nguyễn Thị Minh Khai, Phường 6, Quận 3, TP. Hồ Chí Minh',
+    creditLimit: 50000000,
+    paymentTermDays: 30,
+    status: 'approved',
+    approvedAt: '2026-02-15T10:00:00Z',
+    approvedBy: 'user-1',
+    note: 'Khách sỉ văn phòng phẩm khu vực Q.3',
+    createdAt: '2026-02-12T08:30:00Z',
+  },
+  {
+    userId: 'user-4',
+    companyName: 'Trường THPT Nguyễn Du',
+    taxCode: null,
+    businessType: 'school',
+    contactPerson: 'Trần Thị Chi',
+    contactPhone: '0904222333',
+    contactEmail: 'truongnguyendu@school.edu.vn',
+    invoiceAddress: '45 Lý Tự Trọng, Phường Bến Thành, Quận 1, TP. Hồ Chí Minh',
+    creditLimit: 100000000,
+    paymentTermDays: 45,
+    status: 'approved',
+    approvedAt: '2026-02-22T14:00:00Z',
+    approvedBy: 'user-1',
+    note: 'Đối tác mua sắm định kỳ cho năm học',
+    createdAt: '2026-02-20T09:00:00Z',
+  },
+  {
+    userId: 'user-5',
+    companyName: 'Công ty CP Demo Logistics',
+    taxCode: '0398765432',
+    businessType: 'company',
+    contactPerson: 'Lê Văn Dũng',
+    contactPhone: '0905333444',
+    contactEmail: 'pendingbiz@company.com',
+    invoiceAddress: '88 Võ Văn Tần, Phường 6, Quận 3, TP. Hồ Chí Minh',
+    creditLimit: 0,
+    paymentTermDays: 0,
+    status: 'pending',
+    approvedAt: null,
+    approvedBy: null,
+    note: null,
+    createdAt: '2026-05-22T11:15:00Z',
+  },
 ];
 
 const addresses = [
   { id: 'addr-1', userId: 'user-1', name: 'Phan Quang Admin', phone: '0901234567', street: '123 Nguyễn Huệ', ward: 'Bến Nghé', district: 'Quận 1', city: 'TP. Hồ Chí Minh', isDefault: true },
   { id: 'addr-2', userId: 'user-2', name: 'Phan Quang User', phone: '0912345678', street: '45 Lê Lợi', ward: 'Phường 2', district: 'Quận 3', city: 'TP. Hồ Chí Minh', isDefault: true },
+  { id: 'addr-3', userId: 'user-3', name: 'Nguyễn Văn Bình', phone: '0903111222', street: '120 Nguyễn Thị Minh Khai', ward: 'Phường 6', district: 'Quận 3', city: 'TP. Hồ Chí Minh', isDefault: true },
+  { id: 'addr-4', userId: 'user-4', name: 'Trần Thị Chi', phone: '0904222333', street: '45 Lý Tự Trọng', ward: 'Phường Bến Thành', district: 'Quận 1', city: 'TP. Hồ Chí Minh', isDefault: true },
+  { id: 'addr-5', userId: 'user-5', name: 'Lê Văn Dũng', phone: '0905333444', street: '88 Võ Văn Tần', ward: 'Phường 6', district: 'Quận 3', city: 'TP. Hồ Chí Minh', isDefault: true },
 ];
 
 const vouchers = [
@@ -158,6 +218,93 @@ const productSeeds = [
   { id: 'prod-040', name: 'Lịch để bàn tối giản 2026', sku: 'OEM-DESKCAL-2026', categoryId: 'cat-desk', brandId: 'brand-flexoffice', price: 65000, originalPrice: 78000, imageKey: 'plannerNotebook', description: 'Lịch để bàn 2026 dạng dựng tam giác, đủ ngày tháng và khoảng trống ghi việc quan trọng.', specifications: { 'Năm': '2026', 'Kiểu dáng': 'Tam giác để bàn', 'Ngôn ngữ': 'Tiếng Việt', 'Chất liệu': 'Giấy couche + đế carton' }, stock: 0, sold: 126, rating: 4.2, reviewCount: 6, tags: ['lịch để bàn', '2026'], colors: ['Trắng', 'Xanh navy'], createdAt: '2026-03-25T00:00:00Z', status: 'active' },
 ];
 
+const level2ProductOverrides = {
+  'prod-001': {
+    barcode: '8935009100127',
+    lowStockThreshold: 100,
+    packagingUnits: [
+      { label: 'Hộp 50 cây', qtyPerUnit: 50, price: 250000 },
+      { label: 'Thùng 200 cây', qtyPerUnit: 200, price: 900000 },
+    ],
+    groupPrices: {
+      wholesale: [{ minQty: 50, price: 5400 }, { minQty: 200, price: 5000 }],
+      enterprise: [{ minQty: 100, price: 4800 }, { minQty: 500, price: 4500 }],
+    },
+    customizationLeadDays: 5,
+  },
+  'prod-006': {
+    barcode: '8850001234567',
+    lowStockThreshold: 50,
+    packagingUnits: [
+      { label: 'Thùng 5 ream', qtyPerUnit: 5, price: 430000 },
+      { label: 'Pallet 50 ream', qtyPerUnit: 50, price: 4100000 },
+    ],
+    groupPrices: {
+      wholesale: [{ minQty: 10, price: 89000 }, { minQty: 50, price: 86000 }],
+      enterprise: [{ minQty: 20, price: 85000 }, { minQty: 100, price: 82000 }],
+    },
+  },
+  'prod-008': {
+    barcode: '8935009100456',
+    lowStockThreshold: 30,
+    packagingUnits: [
+      { label: 'Hộp 10 cuốn', qtyPerUnit: 10, price: 620000 },
+      { label: 'Thùng 50 cuốn', qtyPerUnit: 50, price: 2900000 },
+    ],
+    groupPrices: {
+      wholesale: [{ minQty: 20, price: 62000 }, { minQty: 50, price: 58000 }],
+      enterprise: [{ minQty: 30, price: 60000 }, { minQty: 100, price: 55000 }],
+    },
+    customizationLeadDays: 7,
+  },
+  'prod-016': {
+    barcode: '8935009100789',
+    lowStockThreshold: 200,
+    packagingUnits: [
+      { label: 'Gói 100 tờ', qtyPerUnit: 100, price: 260000 },
+      { label: 'Thùng 500 tờ', qtyPerUnit: 500, price: 1100000 },
+    ],
+    groupPrices: {
+      wholesale: [{ minQty: 100, price: 2600 }, { minQty: 500, price: 2200 }],
+      enterprise: [{ minQty: 200, price: 2400 }, { minQty: 1000, price: 2000 }],
+    },
+  },
+  'prod-021': {
+    barcode: '8850009876543',
+    lowStockThreshold: 80,
+    packagingUnits: [
+      { label: 'Lốc 6 cuộn', qtyPerUnit: 6, price: 105000 },
+      { label: 'Thùng 36 cuộn', qtyPerUnit: 36, price: 576000 },
+    ],
+    groupPrices: {
+      wholesale: [{ minQty: 20, price: 17500 }, { minQty: 100, price: 16000 }],
+      enterprise: [{ minQty: 36, price: 15500 }, { minQty: 144, price: 14800 }],
+    },
+  },
+  'prod-035': {
+    barcode: '8935009100999',
+    lowStockThreshold: 30,
+    customizationLeadDays: 10,
+  },
+  'prod-037': {
+    barcode: '8935009100333',
+    lowStockThreshold: 20,
+    packagingUnits: [
+      { label: 'Hộp 10 cái', qtyPerUnit: 10, price: 720000 },
+      { label: 'Thùng 50 cái', qtyPerUnit: 50, price: 3400000 },
+    ],
+    groupPrices: {
+      wholesale: [{ minQty: 20, price: 72000 }, { minQty: 50, price: 68000 }],
+      enterprise: [{ minQty: 50, price: 65000 }, { minQty: 100, price: 62000 }],
+    },
+    customizationLeadDays: 14,
+  },
+  'prod-040': {
+    barcode: '8935009100400',
+    lowStockThreshold: 20,
+  },
+};
+
 const products = productSeeds.map((seed) => ({
   id: seed.id,
   name: seed.name,
@@ -184,6 +331,11 @@ const products = productSeeds.map((seed) => ({
   isCustomizable: Boolean(seed.isCustomizable),
   customizationOptions: seed.customizationOptions || [],
   wholesalePrice: seed.wholesalePrice || [],
+  barcode: level2ProductOverrides[seed.id]?.barcode || null,
+  lowStockThreshold: level2ProductOverrides[seed.id]?.lowStockThreshold ?? 10,
+  packagingUnits: level2ProductOverrides[seed.id]?.packagingUnits || [],
+  groupPrices: level2ProductOverrides[seed.id]?.groupPrices || {},
+  customizationLeadDays: level2ProductOverrides[seed.id]?.customizationLeadDays ?? (seed.isCustomizable ? 5 : 3),
   createdAt: seed.createdAt,
   status: seed.status || 'active',
 }));
@@ -195,9 +347,20 @@ const categories = categorySeeds.map((category) => ({
 
 const productLookup = Object.fromEntries(products.map((product) => [product.id, product]));
 
-function buildOrderItem(productId, quantity, customization = null) {
+function buildOrderItem(productId, quantity, options = {}) {
+  const {
+    customization = null,
+    packagingUnit = null,
+    packagingQty = 1,
+    customizationStatus = null,
+    customizationNote = null,
+    unitPrice = null,
+  } = typeof options === 'object' && options !== null && !Array.isArray(options) && !('type' in options)
+    ? options
+    : { customization: options };
+
   const product = productLookup[productId];
-  const price = product.isFlashSale && product.flashSalePrice ? product.flashSalePrice : product.price;
+  const price = unitPrice ?? (product.isFlashSale && product.flashSalePrice ? product.flashSalePrice : product.price);
   return {
     productId,
     productName: product.name,
@@ -205,6 +368,10 @@ function buildOrderItem(productId, quantity, customization = null) {
     price,
     quantity,
     customization,
+    packagingUnit,
+    packagingQty,
+    customizationStatus: customization ? (customizationStatus || 'pending_review') : null,
+    customizationNote,
   };
 }
 
@@ -293,6 +460,250 @@ const orders = [
       { status: 'processing', date: '2026-05-05T13:30:00Z', note: 'Đang chuẩn bị hàng' },
     ],
   },
+  {
+    id: 'ORD-2001',
+    userId: 'user-3',
+    subtotal: 4450000,
+    shippingFee: 0,
+    discount: 222500,
+    total: 4227500,
+    status: 'delivered',
+    paymentMethod: 'credit',
+    paymentStatus: 'pending',
+    paymentTermDays: 30,
+    paymentDueDate: '2026-07-05T00:00:00Z',
+    shippingMethod: 'standard',
+    shippingAddress: addresses[2],
+    voucherCode: 'BULK5',
+    note: 'Giao kho ABC, giờ hành chính.',
+    quotationId: null,
+    invoiceInfo: {
+      taxCode: '0312345678',
+      companyName: 'Công ty TNHH VPP ABC',
+      invoiceAddress: 'Tầng 5, Tòa nhà ABC, 120 Nguyễn Thị Minh Khai, Phường 6, Quận 3, TP. Hồ Chí Minh',
+    },
+    estimatedDeliveryDate: '2026-06-12T00:00:00Z',
+    hasCustomItems: true,
+    createdAt: '2026-06-05T08:00:00Z',
+    returnRequest: null,
+    items: [
+      buildOrderItem('prod-001', 200, { unitPrice: 5000, packagingUnit: 'Thùng 200 cây', packagingQty: 1 }),
+      buildOrderItem('prod-006', 10, { unitPrice: 86000, packagingUnit: 'Thùng 5 ream', packagingQty: 2 }),
+      buildOrderItem('prod-008', 30, {
+        unitPrice: 58000,
+        packagingUnit: 'Hộp 10 cuốn',
+        packagingQty: 3,
+        customization: { type: 'In logo công ty', text: 'VPP ABC' },
+        customizationStatus: 'in_production',
+        customizationNote: 'Logo vector đã duyệt',
+      }),
+    ],
+    timeline: [
+      { status: 'confirmed', date: '2026-06-05T08:05:00Z', note: 'Đơn hàng công nợ được xác nhận' },
+      { status: 'processing', date: '2026-06-05T13:00:00Z', note: 'Đang chuẩn bị hàng sỉ' },
+      { status: 'shipping', date: '2026-06-07T09:30:00Z', note: 'GHN-B2B-8842' },
+      { status: 'delivered', date: '2026-06-09T15:00:00Z', note: 'Đã giao kho ABC' },
+    ],
+  },
+  {
+    id: 'ORD-2002',
+    userId: 'user-4',
+    subtotal: 3120000,
+    shippingFee: 0,
+    discount: 0,
+    total: 3120000,
+    status: 'shipping',
+    paymentMethod: 'credit',
+    paymentStatus: 'pending',
+    paymentTermDays: 45,
+    paymentDueDate: '2026-07-24T00:00:00Z',
+    shippingMethod: 'standard',
+    shippingAddress: addresses[3],
+    voucherCode: null,
+    note: 'Giao phòng vật tư trường, liên hệ cô Chi.',
+    quotationId: 'quo-002',
+    invoiceInfo: {
+      companyName: 'Trường THPT Nguyễn Du',
+      invoiceAddress: '45 Lý Tự Trọng, Phường Bến Thành, Quận 1, TP. Hồ Chí Minh',
+    },
+    estimatedDeliveryDate: '2026-06-14T00:00:00Z',
+    hasCustomItems: false,
+    createdAt: '2026-06-08T10:30:00Z',
+    returnRequest: null,
+    items: [
+      buildOrderItem('prod-006', 20, { unitPrice: 82000, packagingUnit: 'Thùng 5 ream', packagingQty: 4 }),
+      buildOrderItem('prod-016', 500, { unitPrice: 2000, packagingUnit: 'Thùng 500 tờ', packagingQty: 1 }),
+      buildOrderItem('prod-021', 36, { unitPrice: 14800, packagingUnit: 'Thùng 36 cuộn', packagingQty: 1 }),
+    ],
+    timeline: [
+      { status: 'confirmed', date: '2026-06-08T10:35:00Z', note: 'Đơn hàng công nợ được xác nhận' },
+      { status: 'processing', date: '2026-06-08T14:00:00Z', note: 'Đóng gói theo báo giá QT-2026-0002' },
+      { status: 'shipping', date: '2026-06-09T08:00:00Z', note: 'Viettel Post - VTP88291' },
+    ],
+  },
+  {
+    id: 'ORD-2003',
+    userId: 'user-3',
+    subtotal: 1100000,
+    shippingFee: 30000,
+    discount: 0,
+    total: 1130000,
+    status: 'confirmed',
+    paymentMethod: 'credit',
+    paymentStatus: 'pending',
+    paymentTermDays: 30,
+    paymentDueDate: '2026-07-09T00:00:00Z',
+    shippingMethod: 'express',
+    shippingAddress: addresses[2],
+    voucherCode: null,
+    note: 'Chuyển từ báo giá QT-2026-0003.',
+    quotationId: 'quo-003',
+    invoiceInfo: null,
+    estimatedDeliveryDate: '2026-06-11T00:00:00Z',
+    hasCustomItems: false,
+    createdAt: '2026-06-09T07:00:00Z',
+    returnRequest: null,
+    items: [
+      buildOrderItem('prod-021', 36, { unitPrice: 16000, packagingUnit: 'Thùng 36 cuộn', packagingQty: 1 }),
+      buildOrderItem('prod-037', 10, { unitPrice: 68000, packagingUnit: 'Hộp 10 cái', packagingQty: 1 }),
+    ],
+    timeline: [
+      { status: 'confirmed', date: '2026-06-09T07:05:00Z', note: 'Chuyển đổi từ báo giá QT-2026-0003' },
+    ],
+  },
+];
+
+const quotations = [
+  {
+    id: 'quo-001',
+    userId: 'user-3',
+    code: 'QT-2026-0001',
+    status: 'sent',
+    subtotal: 5200000,
+    discount: 260000,
+    total: 4940000,
+    note: 'Báo giá bút bi và giấy in cho quý 2.',
+    validUntil: '2026-07-01T23:59:59Z',
+    convertedOrderId: null,
+    createdAt: '2026-05-28T09:00:00Z',
+    updatedAt: '2026-05-28T09:30:00Z',
+    items: [
+      { productId: 'prod-001', productName: 'Bút bi Thiên Long TL-027 0.5mm', sku: 'TL-TL027-05', unitPrice: 5000, quantity: 200, packagingUnit: 'Thùng 200 cây', packagingQty: 1, customization: null },
+      { productId: 'prod-006', productName: 'Giấy in Double A A4 80gsm 500 tờ', sku: 'DA-A4-80-500', unitPrice: 86000, quantity: 50, packagingUnit: 'Thùng 5 ream', packagingQty: 10, customization: null },
+    ],
+  },
+  {
+    id: 'quo-002',
+    userId: 'user-4',
+    code: 'QT-2026-0002',
+    status: 'converted',
+    subtotal: 3120000,
+    discount: 0,
+    total: 3120000,
+    note: 'Báo giá vật tư học kỳ II.',
+    validUntil: '2026-06-30T23:59:59Z',
+    convertedOrderId: 'ORD-2002',
+    createdAt: '2026-06-01T14:00:00Z',
+    updatedAt: '2026-06-08T10:30:00Z',
+    items: [
+      { productId: 'prod-006', productName: 'Giấy in Double A A4 80gsm 500 tờ', sku: 'DA-A4-80-500', unitPrice: 82000, quantity: 20, packagingUnit: 'Thùng 5 ream', packagingQty: 4, customization: null },
+      { productId: 'prod-016', productName: 'Bìa lá A4 PLUS trong suốt 0.18mm', sku: 'PL-CF-A4-018', unitPrice: 2000, quantity: 500, packagingUnit: 'Thùng 500 tờ', packagingQty: 1, customization: null },
+      { productId: 'prod-021', productName: 'Băng keo trong 3M 24mm x 66Y', sku: '3M-CT-24-66', unitPrice: 14800, quantity: 36, packagingUnit: 'Thùng 36 cuộn', packagingQty: 1, customization: null },
+    ],
+  },
+  {
+    id: 'quo-003',
+    userId: 'user-3',
+    code: 'QT-2026-0003',
+    status: 'converted',
+    subtotal: 1100000,
+    discount: 0,
+    total: 1100000,
+    note: 'Bổ sung băng keo và cốc bút.',
+    validUntil: '2026-06-20T23:59:59Z',
+    convertedOrderId: 'ORD-2003',
+    createdAt: '2026-06-07T11:00:00Z',
+    updatedAt: '2026-06-09T07:00:00Z',
+    items: [
+      { productId: 'prod-021', productName: 'Băng keo trong 3M 24mm x 66Y', sku: '3M-CT-24-66', unitPrice: 16000, quantity: 36, packagingUnit: 'Thùng 36 cuộn', packagingQty: 1, customization: null },
+      { productId: 'prod-037', productName: 'Cốc đựng bút gỗ tre để bàn', sku: 'OEM-BAMBOO-PEN', unitPrice: 68000, quantity: 10, packagingUnit: 'Hộp 10 cái', packagingQty: 1, customization: null },
+    ],
+  },
+  {
+    id: 'quo-004',
+    userId: 'user-3',
+    code: 'QT-2026-0004',
+    status: 'draft',
+    subtotal: 1740000,
+    discount: 0,
+    total: 1740000,
+    note: 'Dự thảo báo giá sổ tay in logo.',
+    validUntil: '2026-07-15T23:59:59Z',
+    convertedOrderId: null,
+    createdAt: '2026-06-09T16:00:00Z',
+    updatedAt: '2026-06-09T16:00:00Z',
+    items: [
+      { productId: 'prod-008', productName: 'Sổ tay Deli A5 200 trang bìa giả da', sku: 'DL-NB-A5-200', unitPrice: 58000, quantity: 30, packagingUnit: 'Hộp 10 cuốn', packagingQty: 3, customization: { type: 'In logo bìa', text: 'VPP ABC' } },
+    ],
+  },
+  {
+    id: 'quo-005',
+    userId: 'user-5',
+    code: 'QT-2026-0005',
+    status: 'rejected',
+    subtotal: 920000,
+    discount: 0,
+    total: 920000,
+    note: 'Tài khoản doanh nghiệp chưa được duyệt.',
+    validUntil: '2026-06-15T23:59:59Z',
+    convertedOrderId: null,
+    createdAt: '2026-05-25T10:00:00Z',
+    updatedAt: '2026-05-26T09:00:00Z',
+    items: [
+      { productId: 'prod-006', productName: 'Giấy in Double A A4 80gsm 500 tờ', sku: 'DA-A4-80-500', unitPrice: 92000, quantity: 10, packagingUnit: null, packagingQty: 1, customization: null },
+    ],
+  },
+];
+
+const stockMovements = [
+  { id: 'stk-seed-001', productId: 'prod-001', type: 'import', quantity: 500, stockBefore: 0, stockAfter: 500, reason: 'Nhập kho ban đầu', referenceType: 'manual', referenceId: null, createdBy: 'user-1', createdAt: '2026-01-05T08:00:00Z' },
+  { id: 'stk-seed-002', productId: 'prod-006', type: 'import', quantity: 600, stockBefore: 0, stockAfter: 600, reason: 'Nhập kho ban đầu', referenceType: 'manual', referenceId: null, createdBy: 'user-1', createdAt: '2026-01-16T08:00:00Z' },
+  { id: 'stk-seed-003', productId: 'prod-001', type: 'sale', quantity: 80, stockBefore: 500, stockAfter: 420, reason: 'Xuất kho cho đơn hàng ORD-1001', referenceType: 'order', referenceId: 'ORD-1001', createdBy: 'user-1', createdAt: '2026-04-16T11:00:00Z' },
+  { id: 'stk-seed-004', productId: 'prod-035', type: 'adjustment', quantity: 5, stockBefore: 33, stockAfter: 28, reason: 'Kiểm kê tháng 5 - hao hụt', referenceType: 'manual', referenceId: null, createdBy: 'user-1', createdAt: '2026-05-01T09:00:00Z' },
+  { id: 'stk-seed-005', productId: 'prod-021', type: 'import', quantity: 100, stockBefore: 420, stockAfter: 520, reason: 'Nhập bổ sung băng keo 3M', referenceType: 'manual', referenceId: null, createdBy: 'user-1', createdAt: '2026-05-15T10:00:00Z' },
+];
+
+const invoices = [
+  {
+    id: 'inv-001',
+    orderId: 'ORD-2001',
+    invoiceNumber: 'HD-2026-00042',
+    taxCode: '0312345678',
+    companyName: 'Công ty TNHH VPP ABC',
+    invoiceAddress: 'Tầng 5, Tòa nhà ABC, 120 Nguyễn Thị Minh Khai, Phường 6, Quận 3, TP. Hồ Chí Minh',
+    subtotal: 4227500,
+    vatRate: 10,
+    vatAmount: 422750,
+    total: 4650250,
+    status: 'issued',
+    issuedAt: '2026-06-10T09:00:00Z',
+    issuedBy: 'user-1',
+  },
+  {
+    id: 'inv-002',
+    orderId: 'ORD-1003',
+    invoiceNumber: 'HD-2026-00038',
+    taxCode: null,
+    companyName: 'Phan Quang User',
+    invoiceAddress: '45 Lê Lợi, Phường 2, Quận 3, TP. Hồ Chí Minh',
+    subtotal: 425000,
+    vatRate: 10,
+    vatAmount: 42500,
+    total: 467500,
+    status: 'issued',
+    issuedAt: '2026-05-06T10:00:00Z',
+    issuedBy: 'user-1',
+  },
 ];
 
 const chatMessages = [
@@ -303,9 +714,17 @@ const chatMessages = [
 
 async function clearExistingData(pool) {
   await pool.request().query(`
+    IF OBJECT_ID('dbo.voucher_usage', 'U') IS NOT NULL DELETE FROM dbo.voucher_usage;
+    IF OBJECT_ID('dbo.user_vouchers', 'U') IS NOT NULL DELETE FROM dbo.user_vouchers;
+    IF OBJECT_ID('dbo.voucher_events', 'U') IS NOT NULL DELETE FROM dbo.voucher_events;
+    IF OBJECT_ID('dbo.invoices', 'U') IS NOT NULL DELETE FROM dbo.invoices;
+    IF OBJECT_ID('dbo.quotation_items', 'U') IS NOT NULL DELETE FROM dbo.quotation_items;
+    IF OBJECT_ID('dbo.quotations', 'U') IS NOT NULL DELETE FROM dbo.quotations;
+    IF OBJECT_ID('dbo.stock_movements', 'U') IS NOT NULL DELETE FROM dbo.stock_movements;
     DELETE FROM dbo.order_timeline;
     DELETE FROM dbo.order_items;
     DELETE FROM dbo.orders;
+    IF OBJECT_ID('dbo.business_profiles', 'U') IS NOT NULL DELETE FROM dbo.business_profiles;
     DELETE FROM dbo.wishlist;
     DELETE FROM dbo.reviews;
     DELETE FROM dbo.addresses;
@@ -368,6 +787,11 @@ async function seedData(pool, sql) {
       .input('isCustomizable', sql.Bit, product.isCustomizable)
       .input('customizationOptions', sql.NVarChar(sql.MAX), JSON.stringify(product.customizationOptions || []))
       .input('wholesalePrice', sql.NVarChar(sql.MAX), JSON.stringify(product.wholesalePrice || []))
+      .input('barcode', sql.NVarChar, product.barcode)
+      .input('lowStockThreshold', sql.Int, product.lowStockThreshold)
+      .input('packagingUnits', sql.NVarChar(sql.MAX), JSON.stringify(product.packagingUnits || []))
+      .input('groupPrices', sql.NVarChar(sql.MAX), JSON.stringify(product.groupPrices || {}))
+      .input('customizationLeadDays', sql.Int, product.customizationLeadDays)
       .input('createdAt', sql.DateTime2, product.createdAt)
       .input('status', sql.NVarChar, product.status)
       .query(`
@@ -375,11 +799,13 @@ async function seedData(pool, sql) {
           id, name, slug, sku, categoryId, brandId, price, originalPrice, discount, images, description,
           specifications, stock, sold, rating, reviewCount, reviews, colors, tags,
           isFlashSale, flashSaleEnd, flashSalePrice, isCustomizable, customizationOptions, wholesalePrice,
+          barcode, lowStockThreshold, packagingUnits, groupPrices, customizationLeadDays,
           createdAt, status
         ) VALUES (
           @id, @name, @slug, @sku, @categoryId, @brandId, @price, @originalPrice, @discount, @images, @description,
           @specifications, @stock, @sold, @rating, @reviewCount, @reviews, @colors, @tags,
           @isFlashSale, @flashSaleEnd, @flashSalePrice, @isCustomizable, @customizationOptions, @wholesalePrice,
+          @barcode, @lowStockThreshold, @packagingUnits, @groupPrices, @customizationLeadDays,
           @createdAt, @status
         )
       `);
@@ -396,8 +822,9 @@ async function seedData(pool, sql) {
       .input('role', sql.NVarChar, user.role)
       .input('status', sql.NVarChar, user.status)
       .input('passwordHash', sql.NVarChar, defaultPasswordHash)
+      .input('customerType', sql.NVarChar, user.customerType || 'retail')
       .input('createdAt', sql.DateTime2, user.createdAt)
-      .query('INSERT INTO dbo.users (id, email, name, phone, avatar, role, status, passwordHash, createdAt) VALUES (@id, @email, @name, @phone, @avatar, @role, @status, @passwordHash, @createdAt)');
+      .query('INSERT INTO dbo.users (id, email, name, phone, avatar, role, status, passwordHash, customerType, createdAt) VALUES (@id, @email, @name, @phone, @avatar, @role, @status, @passwordHash, @customerType, @createdAt)');
   }
 
   for (const addr of addresses) {
@@ -450,6 +877,58 @@ async function seedData(pool, sql) {
       .query('INSERT INTO dbo.vouchers (id, code, type, value, minOrderValue, maxDiscount, usageLimit, usedCount, startDate, endDate, status, description) VALUES (@id, @code, @type, @value, @minOrderValue, @maxDiscount, @usageLimit, @usedCount, @startDate, @endDate, @status, @description)');
   }
 
+  for (const profile of businessProfiles) {
+    await pool.request()
+      .input('userId', sql.NVarChar, profile.userId)
+      .input('companyName', sql.NVarChar, profile.companyName)
+      .input('taxCode', sql.NVarChar, profile.taxCode)
+      .input('businessType', sql.NVarChar, profile.businessType)
+      .input('contactPerson', sql.NVarChar, profile.contactPerson)
+      .input('contactPhone', sql.NVarChar, profile.contactPhone)
+      .input('contactEmail', sql.NVarChar, profile.contactEmail)
+      .input('invoiceAddress', sql.NVarChar, profile.invoiceAddress)
+      .input('creditLimit', sql.Decimal(18, 2), profile.creditLimit)
+      .input('paymentTermDays', sql.Int, profile.paymentTermDays)
+      .input('status', sql.NVarChar, profile.status)
+      .input('approvedAt', sql.DateTime2, profile.approvedAt)
+      .input('approvedBy', sql.NVarChar, profile.approvedBy)
+      .input('note', sql.NVarChar, profile.note)
+      .input('createdAt', sql.DateTime2, profile.createdAt)
+      .query(`
+        INSERT INTO dbo.business_profiles (
+          userId, companyName, taxCode, businessType, contactPerson, contactPhone, contactEmail,
+          invoiceAddress, creditLimit, paymentTermDays, [status], approvedAt, approvedBy, note, createdAt
+        ) VALUES (
+          @userId, @companyName, @taxCode, @businessType, @contactPerson, @contactPhone, @contactEmail,
+          @invoiceAddress, @creditLimit, @paymentTermDays, @status, @approvedAt, @approvedBy, @note, @createdAt
+        )
+      `);
+  }
+
+  for (const movement of stockMovements) {
+    await pool.request()
+      .input('id', sql.NVarChar, movement.id)
+      .input('productId', sql.NVarChar, movement.productId)
+      .input('type', sql.NVarChar, movement.type)
+      .input('quantity', sql.Int, movement.quantity)
+      .input('stockBefore', sql.Int, movement.stockBefore)
+      .input('stockAfter', sql.Int, movement.stockAfter)
+      .input('reason', sql.NVarChar, movement.reason)
+      .input('referenceType', sql.NVarChar, movement.referenceType)
+      .input('referenceId', sql.NVarChar, movement.referenceId)
+      .input('createdBy', sql.NVarChar, movement.createdBy)
+      .input('createdAt', sql.DateTime2, movement.createdAt)
+      .query(`
+        INSERT INTO dbo.stock_movements (
+          id, productId, [type], quantity, stockBefore, stockAfter,
+          reason, referenceType, referenceId, createdBy, createdAt
+        ) VALUES (
+          @id, @productId, @type, @quantity, @stockBefore, @stockAfter,
+          @reason, @referenceType, @referenceId, @createdBy, @createdAt
+        )
+      `);
+  }
+
   for (const order of orders) {
     await pool.request()
       .input('id', sql.NVarChar, order.id)
@@ -467,7 +946,23 @@ async function seedData(pool, sql) {
       .input('note', sql.NVarChar(sql.MAX), order.note)
       .input('createdAt', sql.DateTime2, order.createdAt)
       .input('returnRequest', sql.NVarChar(sql.MAX), JSON.stringify(order.returnRequest))
-      .query('INSERT INTO dbo.orders (id, userId, subtotal, shippingFee, discount, total, status, paymentMethod, paymentStatus, shippingMethod, shippingAddress, voucherCode, note, createdAt, returnRequest) VALUES (@id, @userId, @subtotal, @shippingFee, @discount, @total, @status, @paymentMethod, @paymentStatus, @shippingMethod, @shippingAddress, @voucherCode, @note, @createdAt, @returnRequest)');
+      .input('quotationId', sql.NVarChar, order.quotationId || null)
+      .input('paymentTermDays', sql.Int, order.paymentTermDays ?? null)
+      .input('paymentDueDate', sql.DateTime2, order.paymentDueDate ?? null)
+      .input('invoiceInfo', sql.NVarChar(sql.MAX), order.invoiceInfo ? JSON.stringify(order.invoiceInfo) : null)
+      .input('estimatedDeliveryDate', sql.DateTime2, order.estimatedDeliveryDate ?? null)
+      .input('hasCustomItems', sql.Bit, Boolean(order.hasCustomItems))
+      .query(`
+        INSERT INTO dbo.orders (
+          id, userId, subtotal, shippingFee, discount, total, status, paymentMethod, paymentStatus,
+          shippingMethod, shippingAddress, voucherCode, note, createdAt, returnRequest,
+          quotationId, paymentTermDays, paymentDueDate, invoiceInfo, estimatedDeliveryDate, hasCustomItems
+        ) VALUES (
+          @id, @userId, @subtotal, @shippingFee, @discount, @total, @status, @paymentMethod, @paymentStatus,
+          @shippingMethod, @shippingAddress, @voucherCode, @note, @createdAt, @returnRequest,
+          @quotationId, @paymentTermDays, @paymentDueDate, @invoiceInfo, @estimatedDeliveryDate, @hasCustomItems
+        )
+      `);
 
     for (const item of order.items) {
       await pool.request()
@@ -478,7 +973,19 @@ async function seedData(pool, sql) {
         .input('price', sql.Decimal(18, 2), item.price)
         .input('quantity', sql.Int, item.quantity)
         .input('customization', sql.NVarChar(sql.MAX), JSON.stringify(item.customization))
-        .query('INSERT INTO dbo.order_items (orderId, productId, productName, productImage, price, quantity, customization) VALUES (@orderId, @productId, @productName, @productImage, @price, @quantity, @customization)');
+        .input('customizationStatus', sql.NVarChar, item.customizationStatus || null)
+        .input('customizationNote', sql.NVarChar, item.customizationNote || null)
+        .input('packagingUnit', sql.NVarChar, item.packagingUnit || null)
+        .input('packagingQty', sql.Int, item.packagingQty ?? 1)
+        .query(`
+          INSERT INTO dbo.order_items (
+            orderId, productId, productName, productImage, price, quantity,
+            customization, customizationStatus, customizationNote, packagingUnit, packagingQty
+          ) VALUES (
+            @orderId, @productId, @productName, @productImage, @price, @quantity,
+            @customization, @customizationStatus, @customizationNote, @packagingUnit, @packagingQty
+          )
+        `);
     }
 
     for (const entry of order.timeline) {
@@ -489,6 +996,79 @@ async function seedData(pool, sql) {
         .input('note', sql.NVarChar, entry.note)
         .query('INSERT INTO dbo.order_timeline (orderId, status, date, note) VALUES (@orderId, @status, @date, @note)');
     }
+  }
+
+  for (const quotation of quotations) {
+    await pool.request()
+      .input('id', sql.NVarChar, quotation.id)
+      .input('userId', sql.NVarChar, quotation.userId)
+      .input('code', sql.NVarChar, quotation.code)
+      .input('status', sql.NVarChar, quotation.status)
+      .input('subtotal', sql.Decimal(18, 2), quotation.subtotal)
+      .input('discount', sql.Decimal(18, 2), quotation.discount)
+      .input('total', sql.Decimal(18, 2), quotation.total)
+      .input('note', sql.NVarChar(sql.MAX), quotation.note)
+      .input('validUntil', sql.DateTime2, quotation.validUntil)
+      .input('convertedOrderId', sql.NVarChar, quotation.convertedOrderId)
+      .input('createdAt', sql.DateTime2, quotation.createdAt)
+      .input('updatedAt', sql.DateTime2, quotation.updatedAt)
+      .query(`
+        INSERT INTO dbo.quotations (
+          id, userId, code, [status], subtotal, discount, total, note, validUntil, convertedOrderId, createdAt, updatedAt
+        ) VALUES (
+          @id, @userId, @code, @status, @subtotal, @discount, @total, @note, @validUntil, @convertedOrderId, @createdAt, @updatedAt
+        )
+      `);
+
+    for (const item of quotation.items) {
+      const product = productLookup[item.productId];
+      await pool.request()
+        .input('quotationId', sql.NVarChar, quotation.id)
+        .input('productId', sql.NVarChar, item.productId)
+        .input('productName', sql.NVarChar, item.productName)
+        .input('productImage', sql.NVarChar, product?.images?.[0]?.url || '')
+        .input('sku', sql.NVarChar, item.sku)
+        .input('unitPrice', sql.Decimal(18, 2), item.unitPrice)
+        .input('quantity', sql.Int, item.quantity)
+        .input('packagingUnit', sql.NVarChar, item.packagingUnit)
+        .input('packagingQty', sql.Int, item.packagingQty ?? 1)
+        .input('customization', sql.NVarChar(sql.MAX), JSON.stringify(item.customization))
+        .query(`
+          INSERT INTO dbo.quotation_items (
+            quotationId, productId, productName, productImage, sku, unitPrice,
+            quantity, packagingUnit, packagingQty, customization
+          ) VALUES (
+            @quotationId, @productId, @productName, @productImage, @sku, @unitPrice,
+            @quantity, @packagingUnit, @packagingQty, @customization
+          )
+        `);
+    }
+  }
+
+  for (const invoice of invoices) {
+    await pool.request()
+      .input('id', sql.NVarChar, invoice.id)
+      .input('orderId', sql.NVarChar, invoice.orderId)
+      .input('invoiceNumber', sql.NVarChar, invoice.invoiceNumber)
+      .input('taxCode', sql.NVarChar, invoice.taxCode)
+      .input('companyName', sql.NVarChar, invoice.companyName)
+      .input('invoiceAddress', sql.NVarChar, invoice.invoiceAddress)
+      .input('subtotal', sql.Decimal(18, 2), invoice.subtotal)
+      .input('vatRate', sql.Decimal(5, 2), invoice.vatRate)
+      .input('vatAmount', sql.Decimal(18, 2), invoice.vatAmount)
+      .input('total', sql.Decimal(18, 2), invoice.total)
+      .input('status', sql.NVarChar, invoice.status)
+      .input('issuedAt', sql.DateTime2, invoice.issuedAt)
+      .input('issuedBy', sql.NVarChar, invoice.issuedBy)
+      .query(`
+        INSERT INTO dbo.invoices (
+          id, orderId, invoiceNumber, taxCode, companyName, invoiceAddress,
+          subtotal, vatRate, vatAmount, total, [status], issuedAt, issuedBy
+        ) VALUES (
+          @id, @orderId, @invoiceNumber, @taxCode, @companyName, @invoiceAddress,
+          @subtotal, @vatRate, @vatAmount, @total, @status, @issuedAt, @issuedBy
+        )
+      `);
   }
 
   for (const msg of chatMessages) {

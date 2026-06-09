@@ -5,6 +5,8 @@ const { safeJsonParse } = require('../utils/mapRows');
 const { VNPay, ignoreLogger } = require('vnpay');
 const { PayOS } = require('@payos/node');
 const { getUserOrderCount, checkOrderMilestone } = require('../services/voucherDistributionService');
+const { createOrderTransaction } = require('../services/orderService');
+const { maybeRestoreStockForOrder } = require('../services/inventoryService');
 
 const router = express.Router();
 
@@ -139,15 +141,28 @@ async function markOrderFailed(pool, orderId, failureNote) {
     return { ok: true, orderId };
   }
 
-  await pool.request()
-    .input('id', sql.NVarChar, orderId)
-    .query("UPDATE dbo.orders SET paymentStatus = 'failed', [status] = 'cancelled' WHERE id = @id");
+  const transaction = new sql.Transaction(pool);
+  await transaction.begin();
 
-  await pool.request()
-    .input('orderId', sql.NVarChar, orderId)
-    .input('status', sql.NVarChar, 'cancelled')
-    .input('note', sql.NVarChar, failureNote)
-    .query("IF NOT EXISTS (SELECT 1 FROM dbo.order_timeline WHERE orderId = @orderId AND [status] = @status) INSERT INTO dbo.order_timeline (orderId, status, date, note) VALUES (@orderId, @status, SYSUTCDATETIME(), @note)");
+  try {
+    const request = new sql.Request(transaction);
+    await maybeRestoreStockForOrder(request, orderId, 'system');
+
+    await new sql.Request(transaction)
+      .input('id', sql.NVarChar, orderId)
+      .query("UPDATE dbo.orders SET paymentStatus = 'failed', [status] = 'cancelled' WHERE id = @id");
+
+    await new sql.Request(transaction)
+      .input('orderId', sql.NVarChar, orderId)
+      .input('status', sql.NVarChar, 'cancelled')
+      .input('note', sql.NVarChar, failureNote)
+      .query("IF NOT EXISTS (SELECT 1 FROM dbo.order_timeline WHERE orderId = @orderId AND [status] = @status) INSERT INTO dbo.order_timeline (orderId, status, date, note) VALUES (@orderId, @status, SYSUTCDATETIME(), @note)");
+
+    await transaction.commit();
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
 
   return { ok: false, orderId, reason: 'payment_failed' };
 }
@@ -461,12 +476,17 @@ function buildOrdersFromRows(orders, items, timelines) {
   const itemsByOrder = items.reduce((acc, row) => {
     acc[row.orderId] = acc[row.orderId] || [];
     acc[row.orderId].push({
+      id: row.id,
       productId: row.productId,
       productName: row.productName,
       productImage: row.productImage,
       price: Number(row.price),
       quantity: row.quantity,
       customization: safeJsonParse(row.customization, null),
+      customizationStatus: row.customizationStatus || null,
+      customizationNote: row.customizationNote || null,
+      packagingUnit: row.packagingUnit || null,
+      packagingQty: Number(row.packagingQty || 1),
     });
     return acc;
   }, {});
@@ -485,6 +505,9 @@ function buildOrdersFromRows(orders, items, timelines) {
     total: Number(row.total),
     shippingAddress: safeJsonParse(row.shippingAddress, {}),
     returnRequest: safeJsonParse(row.returnRequest, null),
+    invoiceInfo: safeJsonParse(row.invoiceInfo, null),
+    hasCustomItems: Boolean(row.hasCustomItems),
+    paymentTermDays: row.paymentTermDays != null ? Number(row.paymentTermDays) : null,
     items: itemsByOrder[row.id] || [],
     timeline: timelineByOrder[row.id] || [],
   }));
@@ -529,7 +552,7 @@ const VALID_SHIPPING_CARRIERS = ['ghtk', 'ghn', 'viettel_post', 'jt', 'ninja_van
 const PAYMENT_GATED_STATUSES = ['confirmed', 'processing', 'shipping'];
 
 function isOnlinePaymentPending(order) {
-  return order.paymentMethod !== 'cod' && order.paymentStatus !== 'paid';
+  return ['vnpay', 'payos'].includes(order.paymentMethod) && order.paymentStatus !== 'paid';
 }
 
 function assertPaymentAllowsStatus(order, nextStatus) {
@@ -588,143 +611,39 @@ router.get('/my-orders', authMiddleware, async (req, res, next) => {
 router.post('/', authMiddleware, async (req, res, next) => {
   try {
     const {
-      items, subtotal, shippingFee, discount, total,
-      paymentMethod, shippingMethod, shippingAddress, voucherCode, note,
+      items,
+      shippingFee,
+      discount,
+      paymentMethod,
+      shippingMethod,
+      shippingAddress,
+      voucherCode,
+      note,
+      quotationId,
+      invoiceInfo,
     } = req.body;
-
-    const normalizedPaymentMethod = paymentMethod || 'cod';
-    if (!['cod', 'vnpay', 'payos'].includes(normalizedPaymentMethod)) {
-      return res.status(400).json({ message: 'Chỉ hỗ trợ thanh toán COD, VNPay hoặc PayOS' });
-    }
 
     if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ message: 'Order items are required' });
     }
 
-    const orderId = `ORD-${Date.now().toString().slice(-8)}`;
     const pool = await getPool();
+    const created = await createOrderTransaction(pool, {
+      userId: req.user.userId,
+      items,
+      shippingFee,
+      discount,
+      paymentMethod,
+      shippingMethod,
+      shippingAddress,
+      voucherCode,
+      note,
+      quotationId,
+      invoiceInfo,
+      createdBy: req.user.userId,
+    });
 
-    const normalizedShippingFee = Number(shippingFee || 0);
-    const normalizedDiscount = Number(discount || 0);
-    let computedSubtotal = 0;
-
-    await pool.request()
-      .input('id', sql.NVarChar, orderId)
-      .input('userId', sql.NVarChar, req.user.userId)
-      .input('subtotal', sql.Decimal(18, 2), 0)
-      .input('shippingFee', sql.Decimal(18, 2), normalizedShippingFee)
-      .input('discount', sql.Decimal(18, 2), normalizedDiscount)
-      .input('total', sql.Decimal(18, 2), 0)
-      .input('status', sql.NVarChar, 'pending')
-      .input('paymentMethod', sql.NVarChar, normalizedPaymentMethod)
-      .input('paymentStatus', sql.NVarChar, 'pending')
-      .input('shippingMethod', sql.NVarChar, shippingMethod || 'standard')
-      .input('shippingAddress', sql.NVarChar(sql.MAX), JSON.stringify(shippingAddress || {}))
-      .input('voucherCode', sql.NVarChar, voucherCode || null)
-      .input('note', sql.NVarChar(sql.MAX), note || null)
-      .query(`
-        INSERT INTO dbo.orders (
-          id, userId, subtotal, shippingFee, discount, total, status, paymentMethod, paymentStatus,
-          shippingMethod, shippingAddress, voucherCode, note, createdAt, returnRequest
-        )
-        VALUES (
-          @id, @userId, @subtotal, @shippingFee, @discount, @total, @status, @paymentMethod, @paymentStatus,
-          @shippingMethod, @shippingAddress, @voucherCode, @note, SYSUTCDATETIME(), NULL
-        )
-      `);
-
-    for (const item of items) {
-      const productResult = await pool.request()
-        .input('productId', sql.NVarChar, item.productId)
-        .query('SELECT TOP 1 id, name, images, price, isCustomizable, customizationOptions FROM dbo.products WHERE id = @productId');
-
-      const product = productResult.recordset[0];
-      if (!product) {
-        return res.status(400).json({ message: `Sản phẩm không tồn tại: ${item.productId}` });
-      }
-
-      let normalizedCustomization = null;
-      let enforcedExtraPrice = 0;
-      if (item.customization) {
-        const type = typeof item.customization.type === 'string' ? item.customization.type.trim() : '';
-        const text = typeof item.customization.text === 'string' ? item.customization.text.trim() : '';
-
-        if (!type) {
-          return res.status(400).json({ message: `Thông tin tùy chỉnh không hợp lệ cho sản phẩm: ${product.name}` });
-        }
-
-        if (!product.isCustomizable) {
-          return res.status(400).json({ message: `Sản phẩm không hỗ trợ tùy chỉnh: ${product.name}` });
-        }
-
-        const allowedOptions = normalizeProductCustomizationOptions(product.customizationOptions);
-        let selectedOption = null;
-        if (allowedOptions.length > 0) {
-          selectedOption = allowedOptions.find((opt) => opt.label.toLowerCase() === type.toLowerCase()) || null;
-          if (!selectedOption) {
-            return res.status(400).json({ message: `Loại tùy chỉnh không hợp lệ cho sản phẩm: ${product.name}` });
-          }
-        }
-
-        if (!text) {
-          return res.status(400).json({ message: `Vui lòng nhập nội dung tùy chỉnh cho sản phẩm: ${product.name}` });
-        }
-
-        if (selectedOption?.inputType === 'image') {
-          const isDataUrl = text.startsWith('data:image/');
-          const isUrl = text.startsWith('http://') || text.startsWith('https://');
-          if (!isDataUrl && !isUrl) {
-            return res.status(400).json({ message: `Ảnh tùy chỉnh không hợp lệ cho sản phẩm: ${product.name}` });
-          }
-        }
-
-        normalizedCustomization = {
-          type,
-          text,
-          inputType: selectedOption?.inputType || 'text',
-          extraPrice: selectedOption?.extraPrice || 0,
-        };
-        enforcedExtraPrice = selectedOption?.extraPrice || 0;
-      }
-
-      const requestedUnitPrice = Number(item.price || 0);
-      const fallbackBasePrice = Number(product.price || 0);
-      const minimumValidPrice = fallbackBasePrice + enforcedExtraPrice;
-      const finalUnitPrice = Math.max(requestedUnitPrice, minimumValidPrice);
-      const quantityValue = Number(item.quantity || 1);
-      computedSubtotal += finalUnitPrice * quantityValue;
-
-      const images = safeJsonParse(product.images, []);
-      const productImage = Array.isArray(images) && images[0]?.url ? images[0].url : '';
-
-      await pool.request()
-        .input('orderId', sql.NVarChar, orderId)
-        .input('productId', sql.NVarChar, item.productId)
-        .input('productName', sql.NVarChar, product.name || item.productName || '')
-        .input('productImage', sql.NVarChar, productImage || item.productImage || '')
-        .input('price', sql.Decimal(18, 2), finalUnitPrice)
-        .input('quantity', sql.Int, quantityValue)
-        .input('customization', sql.NVarChar(sql.MAX), JSON.stringify(normalizedCustomization))
-        .query('INSERT INTO dbo.order_items (orderId, productId, productName, productImage, price, quantity, customization) VALUES (@orderId, @productId, @productName, @productImage, @price, @quantity, @customization)');
-    }
-
-    const computedTotal = Math.max(0, computedSubtotal + normalizedShippingFee - normalizedDiscount);
-    await pool.request()
-      .input('id', sql.NVarChar, orderId)
-      .input('subtotal', sql.Decimal(18, 2), computedSubtotal)
-      .input('total', sql.Decimal(18, 2), computedTotal)
-      .query('UPDATE dbo.orders SET subtotal = @subtotal, total = @total WHERE id = @id');
-
-    await pool.request()
-      .input('orderId', sql.NVarChar, orderId)
-      .query("INSERT INTO dbo.order_timeline (orderId, status, date, note) VALUES (@orderId, 'pending', SYSUTCDATETIME(), NULL)");
-
-    // Mark voucher used immediately for COD only.
-    if (voucherCode && normalizedPaymentMethod === 'cod') {
-      await pool.request()
-        .input('code', sql.NVarChar, voucherCode.toUpperCase())
-        .query('UPDATE dbo.vouchers SET usedCount = usedCount + 1 WHERE code = @code');
-    }
+    const normalizedPaymentMethod = created.paymentMethod;
 
     if (normalizedPaymentMethod === 'vnpay') {
       const vnpay = getVNPayGateway();
@@ -732,7 +651,7 @@ router.post('/', authMiddleware, async (req, res, next) => {
         return res.status(500).json({ message: 'VNPay chưa được cấu hình trên server' });
       }
 
-      const payableAmount = Math.round(Number(computedTotal || 0));
+      const payableAmount = Math.round(Number(created.total || 0));
       if (!Number.isFinite(payableAmount) || payableAmount <= 0) {
         return res.status(400).json({ message: 'Số tiền thanh toán không hợp lệ' });
       }
@@ -741,15 +660,16 @@ router.post('/', authMiddleware, async (req, res, next) => {
         vnp_Amount: payableAmount,
         vnp_IpAddr: getClientIp(req),
         vnp_ReturnUrl: VNPAY_RETURN_URL,
-        vnp_TxnRef: orderId,
-        vnp_OrderInfo: `Thanh toan don hang ${orderId}`,
+        vnp_TxnRef: created.id,
+        vnp_OrderInfo: `Thanh toan don hang ${created.id}`,
       });
 
       return res.status(201).json({
-        id: orderId,
+        id: created.id,
         paymentMethod: normalizedPaymentMethod,
         paymentStatus: 'pending',
         paymentUrl,
+        estimatedDeliveryDate: created.estimatedDeliveryDate,
       });
     }
 
@@ -759,33 +679,43 @@ router.post('/', authMiddleware, async (req, res, next) => {
         return res.status(500).json({ message: 'PayOS chưa được cấu hình trên server' });
       }
 
-      const payableAmount = Math.round(Number(computedTotal || 0));
+      const payableAmount = Math.round(Number(created.total || 0));
       if (!Number.isFinite(payableAmount) || payableAmount <= 0) {
         return res.status(400).json({ message: 'Số tiền thanh toán không hợp lệ' });
       }
 
       const paymentLink = await payos.paymentRequests.create({
-        orderCode: getPayOSOrderCode(orderId),
+        orderCode: getPayOSOrderCode(created.id),
         amount: payableAmount,
-        description: `Thanh toan ${orderId}`.slice(0, 25),
+        description: `Thanh toan ${created.id}`.slice(0, 25),
         returnUrl: PAYOS_RETURN_URL,
         cancelUrl: PAYOS_CANCEL_URL,
         buyerName: shippingAddress?.name ? String(shippingAddress.name).slice(0, 100) : undefined,
         buyerPhone: shippingAddress?.phone ? String(shippingAddress.phone).slice(0, 20) : undefined,
         buyerAddress: [shippingAddress?.street, shippingAddress?.ward, shippingAddress?.district, shippingAddress?.city].filter(Boolean).join(', ').slice(0, 255) || undefined,
-        items: [{ name: `Don hang ${orderId}`.slice(0, 25), quantity: 1, price: payableAmount }],
+        items: [{ name: `Don hang ${created.id}`.slice(0, 25), quantity: 1, price: payableAmount }],
       });
 
       return res.status(201).json({
-        id: orderId,
+        id: created.id,
         paymentMethod: normalizedPaymentMethod,
         paymentStatus: 'pending',
         paymentUrl: paymentLink.checkoutUrl,
+        estimatedDeliveryDate: created.estimatedDeliveryDate,
       });
     }
 
-    return res.status(201).json({ id: orderId, message: 'Order created successfully' });
+    return res.status(201).json({
+      id: created.id,
+      message: 'Order created successfully',
+      paymentMethod: normalizedPaymentMethod,
+      estimatedDeliveryDate: created.estimatedDeliveryDate,
+      hasCustomItems: created.hasCustomItems,
+    });
   } catch (error) {
+    if (error.message && !error.code) {
+      return res.status(400).json({ message: error.message });
+    }
     return next(error);
   }
 });
@@ -872,9 +802,19 @@ router.post('/:id/cancel', authMiddleware, async (req, res, next) => {
       return res.status(400).json({ message: 'Chỉ có thể hủy đơn hàng đang chờ xác nhận' });
     }
 
-    await pool.request()
-      .input('id', sql.NVarChar, req.params.id)
-      .query("UPDATE dbo.orders SET [status] = 'cancelled' WHERE id = @id");
+    const transaction = new sql.Transaction(pool);
+    await transaction.begin();
+    try {
+      const request = new sql.Request(transaction);
+      await maybeRestoreStockForOrder(request, req.params.id, req.user.userId);
+      await new sql.Request(transaction)
+        .input('id', sql.NVarChar, req.params.id)
+        .query("UPDATE dbo.orders SET [status] = 'cancelled' WHERE id = @id");
+      await transaction.commit();
+    } catch (innerError) {
+      await transaction.rollback();
+      throw innerError;
+    }
 
     await pool.request()
       .input('orderId', sql.NVarChar, req.params.id)
@@ -1040,7 +980,7 @@ router.patch('/:id/status', authMiddleware, adminMiddleware, async (req, res, ne
     if (status === 'cancelled' && order.paymentStatus === 'paid') {
       nextPaymentStatus = 'refunded';
     }
-    if (status === 'delivered' && order.paymentMethod === 'cod' && order.paymentStatus === 'pending') {
+    if (status === 'delivered' && ['cod', 'credit'].includes(order.paymentMethod) && order.paymentStatus === 'pending') {
       nextPaymentStatus = 'paid';
     }
 
@@ -1051,18 +991,40 @@ router.patch('/:id/status', authMiddleware, adminMiddleware, async (req, res, ne
       ? normalizeTrackingNumber(trackingNumber)
       : null;
 
-    await pool.request()
-      .input('id', sql.NVarChar, req.params.id)
-      .input('status', sql.NVarChar, status)
-      .input('paymentStatus', sql.NVarChar, nextPaymentStatus)
-      .input('shippingCarrier', sql.NVarChar, normalizedCarrier)
-      .input('trackingNumber', sql.NVarChar, normalizedTracking)
-      .query(`UPDATE dbo.orders
-        SET [status] = @status,
-            paymentStatus = @paymentStatus,
-            shippingCarrier = CASE WHEN @shippingCarrier IS NULL THEN shippingCarrier ELSE @shippingCarrier END,
-            trackingNumber = CASE WHEN @trackingNumber IS NULL THEN trackingNumber ELSE @trackingNumber END
-        WHERE id = @id`);
+    const transaction = new sql.Transaction(pool);
+    await transaction.begin();
+
+    try {
+      const request = new sql.Request(transaction);
+
+      if (status === 'cancelled') {
+        await maybeRestoreStockForOrder(request, req.params.id, req.user.userId);
+      }
+
+      await new sql.Request(transaction)
+        .input('id', sql.NVarChar, req.params.id)
+        .input('status', sql.NVarChar, status)
+        .input('paymentStatus', sql.NVarChar, nextPaymentStatus)
+        .input('shippingCarrier', sql.NVarChar, normalizedCarrier)
+        .input('trackingNumber', sql.NVarChar, normalizedTracking)
+        .query(`UPDATE dbo.orders
+          SET [status] = @status,
+              paymentStatus = @paymentStatus,
+              shippingCarrier = CASE WHEN @shippingCarrier IS NULL THEN shippingCarrier ELSE @shippingCarrier END,
+              trackingNumber = CASE WHEN @trackingNumber IS NULL THEN trackingNumber ELSE @trackingNumber END
+          WHERE id = @id`);
+
+      await new sql.Request(transaction)
+        .input('orderId', sql.NVarChar, req.params.id)
+        .input('status', sql.NVarChar, status)
+        .input('note', sql.NVarChar, note || null)
+        .query("INSERT INTO dbo.order_timeline (orderId, status, date, note) VALUES (@orderId, @status, SYSUTCDATETIME(), @note)");
+
+      await transaction.commit();
+    } catch (innerError) {
+      await transaction.rollback();
+      throw innerError;
+    }
 
     if (status === 'cancelled' && order.voucherCode) {
       await adjustVoucherUsage(pool, order.voucherCode, 'decrement');
@@ -1071,12 +1033,6 @@ router.patch('/:id/status', authMiddleware, adminMiddleware, async (req, res, ne
     if (status === 'cancelled' && order.paymentMethod === 'payos') {
       await cancelPayOSPaymentLinkByOrderId(req.params.id, 'Admin huy don');
     }
-
-    await pool.request()
-      .input('orderId', sql.NVarChar, req.params.id)
-      .input('status', sql.NVarChar, status)
-      .input('note', sql.NVarChar, note || null)
-      .query("INSERT INTO dbo.order_timeline (orderId, status, date, note) VALUES (@orderId, @status, SYSUTCDATETIME(), @note)");
 
     // Auto-distribute milestone vouchers when order is delivered (non-blocking)
     if (status === 'delivered') {
@@ -1093,6 +1049,32 @@ router.patch('/:id/status', authMiddleware, adminMiddleware, async (req, res, ne
     }
 
     return res.json({ message: 'Order status updated', paymentStatus: nextPaymentStatus });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.patch('/:orderId/items/:itemId/customization', authMiddleware, adminMiddleware, async (req, res, next) => {
+  try {
+    const { status, note } = req.body;
+    const validStatuses = ['pending_review', 'approved', 'rejected', 'in_production', 'completed'];
+    if (!status || !validStatuses.includes(status)) {
+      return res.status(400).json({ message: 'Trạng thái tùy chỉnh không hợp lệ' });
+    }
+
+    const pool = await getPool();
+    await pool.request()
+      .input('itemId', sql.Int, Number(req.params.itemId))
+      .input('orderId', sql.NVarChar, req.params.orderId)
+      .input('status', sql.NVarChar, status)
+      .input('note', sql.NVarChar, note || null)
+      .query(`
+        UPDATE dbo.order_items
+        SET customizationStatus = @status, customizationNote = @note
+        WHERE id = @itemId AND orderId = @orderId AND customization IS NOT NULL
+      `);
+
+    return res.json({ message: 'Cập nhật trạng thái tùy chỉnh thành công' });
   } catch (error) {
     return next(error);
   }
@@ -1127,20 +1109,36 @@ router.patch('/:id/return', authMiddleware, adminMiddleware, async (req, res, ne
     const newOrderStatus = action === 'approved' ? 'returned' : 'delivered';
     const paymentStatus = action === 'approved' ? 'refunded' : undefined;
 
-    await pool.request()
-      .input('id', sql.NVarChar, req.params.id)
-      .input('returnRequest', sql.NVarChar(sql.MAX), JSON.stringify(returnRequest))
-      .input('status', sql.NVarChar, newOrderStatus)
-      .input('paymentStatus', sql.NVarChar, paymentStatus)
-      .query(action === 'approved'
-        ? "UPDATE dbo.orders SET returnRequest = @returnRequest, [status] = @status, paymentStatus = @paymentStatus WHERE id = @id"
-        : "UPDATE dbo.orders SET returnRequest = @returnRequest, [status] = @status WHERE id = @id");
+    const transaction = new sql.Transaction(pool);
+    await transaction.begin();
 
-    await pool.request()
-      .input('orderId', sql.NVarChar, req.params.id)
-      .input('status', sql.NVarChar, newOrderStatus)
-      .input('note', sql.NVarChar, note || (action === 'approved' ? 'Đã duyệt hoàn hàng' : 'Từ chối hoàn hàng'))
-      .query("INSERT INTO dbo.order_timeline (orderId, status, date, note) VALUES (@orderId, @status, SYSUTCDATETIME(), @note)");
+    try {
+      const request = new sql.Request(transaction);
+
+      if (action === 'approved') {
+        await maybeRestoreStockForOrder(request, req.params.id, req.user.userId);
+      }
+
+      await new sql.Request(transaction)
+        .input('id', sql.NVarChar, req.params.id)
+        .input('returnRequest', sql.NVarChar(sql.MAX), JSON.stringify(returnRequest))
+        .input('status', sql.NVarChar, newOrderStatus)
+        .input('paymentStatus', sql.NVarChar, paymentStatus)
+        .query(action === 'approved'
+          ? "UPDATE dbo.orders SET returnRequest = @returnRequest, [status] = @status, paymentStatus = @paymentStatus WHERE id = @id"
+          : "UPDATE dbo.orders SET returnRequest = @returnRequest, [status] = @status WHERE id = @id");
+
+      await new sql.Request(transaction)
+        .input('orderId', sql.NVarChar, req.params.id)
+        .input('status', sql.NVarChar, newOrderStatus)
+        .input('note', sql.NVarChar, note || (action === 'approved' ? 'Đã duyệt hoàn hàng' : 'Từ chối hoàn hàng'))
+        .query("INSERT INTO dbo.order_timeline (orderId, status, date, note) VALUES (@orderId, @status, SYSUTCDATETIME(), @note)");
+
+      await transaction.commit();
+    } catch (innerError) {
+      await transaction.rollback();
+      throw innerError;
+    }
 
     return res.json({ message: `Return request ${action}` });
   } catch (error) {

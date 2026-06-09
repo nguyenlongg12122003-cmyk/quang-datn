@@ -1,4 +1,4 @@
-import type { CustomizationOption, Product } from '@/types'
+import type { CustomizationOption, CustomerType, Product } from '@/types'
 
 /** Backend accepts options as plain strings or rich objects; normalize to objects. */
 export function normalizeCustomizationOptions(
@@ -24,14 +24,42 @@ export function getEffectivePrice(product: Pick<Product, 'price' | 'isFlashSale'
   return isFlashSaleActive(product) ? (product.flashSalePrice as number) : product.price
 }
 
+function getTierPrices(product: Product, customerType: CustomerType = 'retail') {
+  const groupPrices = product.groupPrices ?? {}
+  if (customerType === 'enterprise' && groupPrices.enterprise?.length) {
+    return groupPrices.enterprise
+  }
+  if (customerType === 'wholesale' && groupPrices.wholesale?.length) {
+    return groupPrices.wholesale
+  }
+  return product.wholesalePrice ?? []
+}
+
 /** Best applicable unit price for a quantity, considering wholesale tiers and flash sale. */
-export function getUnitPriceForQty(product: Product, qty: number): number {
+export function getUnitPriceForQty(
+  product: Product,
+  qty: number,
+  customerType: CustomerType = 'retail',
+): number {
   const base = getEffectivePrice(product)
-  const tiers = (product.wholesalePrice ?? [])
+  const tiers = getTierPrices(product, customerType)
     .filter((t) => qty >= t.minQty)
     .map((t) => t.price)
   if (tiers.length === 0) return base
   return Math.min(base, ...tiers)
+}
+
+export function getPackagingUnitPrice(
+  product: Product,
+  unitLabel: string,
+  packQty: number,
+  customerType: CustomerType = 'retail',
+) {
+  const unit = (product.packagingUnits ?? []).find((u) => u.label === unitLabel)
+  if (!unit) return null
+  const totalQty = unit.qtyPerUnit * packQty
+  if (unit.price != null) return unit.price / unit.qtyPerUnit
+  return getUnitPriceForQty(product, totalQty, customerType)
 }
 
 export function getDiscountPercent(product: Pick<Product, 'price' | 'originalPrice' | 'isFlashSale' | 'flashSalePrice' | 'flashSaleEnd'>): number {

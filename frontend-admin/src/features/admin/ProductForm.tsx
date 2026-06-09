@@ -38,6 +38,7 @@ import {
   type ProductFormState,
   type SpecRow,
   type WholesaleRow,
+  type PackagingRow,
 } from '@/features/admin/product-form-utils'
 import { useScrollSpy } from '@/hooks/use-scroll-spy'
 import { getErrorMessage } from '@/lib/api/axios'
@@ -204,6 +205,38 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
     set({ wholesaleTiers: form.wholesaleTiers.filter((_, i) => i !== index) })
   }
 
+  const addEnterpriseTier = () => {
+    set({ enterpriseTiers: [...form.enterpriseTiers, { minQty: '', price: '' }] })
+  }
+
+  const updateEnterpriseTier = (index: number, patch: Partial<WholesaleRow>) => {
+    set({
+      enterpriseTiers: form.enterpriseTiers.map((tier, i) =>
+        i === index ? { ...tier, ...patch } : tier,
+      ),
+    })
+  }
+
+  const removeEnterpriseTier = (index: number) => {
+    set({ enterpriseTiers: form.enterpriseTiers.filter((_, i) => i !== index) })
+  }
+
+  const addPackagingUnit = () => {
+    set({ packagingUnits: [...form.packagingUnits, { label: '', qtyPerUnit: '', price: '' }] })
+  }
+
+  const updatePackagingUnit = (index: number, patch: Partial<PackagingRow>) => {
+    set({
+      packagingUnits: form.packagingUnits.map((row, i) =>
+        i === index ? { ...row, ...patch } : row,
+      ),
+    })
+  }
+
+  const removePackagingUnit = (index: number) => {
+    set({ packagingUnits: form.packagingUnits.filter((_, i) => i !== index) })
+  }
+
   const regenerateSlug = () => {
     if (!form.name.trim()) {
       toast.error('Nhập tên sản phẩm trước')
@@ -213,7 +246,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
     setSlugTouched(true)
   }
 
-  const stockStatus = getStockStatus(Number(form.stock) || 0)
+  const stockStatus = getStockStatus(Number(form.stock) || 0, Number(form.lowStockThreshold) || 10)
   const previewPrice = form.price ? Number(form.price) : null
   const previewOriginal = form.originalPrice ? Number(form.originalPrice) : null
   const hasDiscount =
@@ -397,6 +430,27 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                 </div>
               </Field>
             </div>
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <Field label="Barcode / mã quét">
+                <Input value={form.barcode} onChange={(e) => set({ barcode: e.target.value })} placeholder="893xxxx" />
+              </Field>
+              <Field label="Ngưỡng tồn thấp">
+                <Input
+                  type="number"
+                  min={0}
+                  value={form.lowStockThreshold}
+                  onChange={(e) => set({ lowStockThreshold: e.target.value })}
+                />
+              </Field>
+              <Field label="Ngày giao hàng (SP tùy chỉnh)">
+                <Input
+                  type="number"
+                  min={1}
+                  value={form.customizationLeadDays}
+                  onChange={(e) => set({ customizationLeadDays: e.target.value })}
+                />
+              </Field>
+            </div>
           </FormSection>
 
           <CollapsibleSection
@@ -446,6 +500,63 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
               onClick={addWholesaleTier}
             >
               <Plus className="size-4" /> Thêm bậc giá sỉ
+            </Button>
+            <Separator className="my-4" />
+            <p className="mb-2 text-sm font-medium">Giá đại lý / doanh nghiệp</p>
+            <DynamicTable
+              headers={['Số lượng tối thiểu', 'Giá / sản phẩm', '']}
+              columns="minmax(0,140px) 1fr 40px"
+              emptyText="Chưa có bậc giá đại lý."
+              isEmpty={form.enterpriseTiers.length === 0}
+            >
+              {form.enterpriseTiers.map((tier, index) => (
+                <DynamicTableRow key={index} columns="minmax(0,140px) 1fr 40px">
+                  <Input
+                    type="number"
+                    min={1}
+                    value={tier.minQty}
+                    onChange={(e) => updateEnterpriseTier(index, { minQty: e.target.value })}
+                  />
+                  <CurrencyInput
+                    value={tier.price}
+                    onChange={(price) => updateEnterpriseTier(index, { price })}
+                  />
+                  <Button type="button" variant="ghost" size="icon-sm" className="text-destructive" onClick={() => removeEnterpriseTier(index)}>
+                    <Trash2 className="size-4" />
+                  </Button>
+                </DynamicTableRow>
+              ))}
+            </DynamicTable>
+            <Button type="button" variant="outline" size="sm" className="mt-3 gap-1" onClick={addEnterpriseTier}>
+              <Plus className="size-4" /> Thêm bậc giá đại lý
+            </Button>
+          </CollapsibleSection>
+
+          <CollapsibleSection
+            id="section-packaging"
+            title="Quy cách đóng gói"
+            description="Bán theo hộp, thùng, lốc..."
+            defaultOpen={form.packagingUnits.length > 0}
+          >
+            <DynamicTable
+              headers={['Tên quy cách', 'SL / quy cách', 'Giá / quy cách (tùy chọn)', '']}
+              columns="1fr 140px 1fr 40px"
+              emptyText="Chưa có quy cách đóng gói."
+              isEmpty={form.packagingUnits.length === 0}
+            >
+              {form.packagingUnits.map((row, index) => (
+                <DynamicTableRow key={index} columns="1fr 140px 1fr 40px">
+                  <Input value={row.label} onChange={(e) => updatePackagingUnit(index, { label: e.target.value })} placeholder="Hộp" />
+                  <Input type="number" min={1} value={row.qtyPerUnit} onChange={(e) => updatePackagingUnit(index, { qtyPerUnit: e.target.value })} placeholder="12" />
+                  <CurrencyInput value={row.price} onChange={(price) => updatePackagingUnit(index, { price })} placeholder="để trống = tính theo giá lẻ/sỉ" />
+                  <Button type="button" variant="ghost" size="icon-sm" className="text-destructive" onClick={() => removePackagingUnit(index)}>
+                    <Trash2 className="size-4" />
+                  </Button>
+                </DynamicTableRow>
+              ))}
+            </DynamicTable>
+            <Button type="button" variant="outline" size="sm" className="mt-3 gap-1" onClick={addPackagingUnit}>
+              <Plus className="size-4" /> Thêm quy cách
             </Button>
           </CollapsibleSection>
 
