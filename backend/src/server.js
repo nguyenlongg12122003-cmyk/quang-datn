@@ -5,7 +5,7 @@ const http = require('http');
 const cors = require('cors');
 const { Server: SocketIOServer } = require('socket.io');
 const { initDatabase } = require('./libs/initDb');
-const { closePool } = require('./libs/db');
+const { closePool, formatSqlError } = require('./libs/db');
 const { attachSocketIO } = require('./libs/socketHandler');
 
 const authRoute = require('./routes/authRoute');
@@ -83,15 +83,37 @@ app.use(errorHandler);
 // ── Bootstrap ────────────────────────────────────────────────────────────────
 const PORT = Number(process.env.PORT || 5000);
 
+function listen(port) {
+  return new Promise((resolve, reject) => {
+    const onError = (error) => {
+      httpServer.off('listening', onListening);
+      reject(error);
+    };
+    const onListening = () => {
+      httpServer.off('error', onError);
+      resolve();
+    };
+
+    httpServer.once('error', onError);
+    httpServer.once('listening', onListening);
+    httpServer.listen(port);
+  });
+}
+
 async function bootstrap() {
   try {
     await initDatabase();
-    httpServer.listen(PORT, () => {
-      console.log(`[server] Backend listening on port ${PORT}`);
-      console.log(`[server] Socket.IO attached`);
-    });
+    await listen(PORT);
+    console.log(`[server] Backend listening on port ${PORT}`);
+    console.log(`[server] Socket.IO attached`);
   } catch (error) {
-    console.error('[server] Failed to start:', error.message);
+    if (error.code === 'EADDRINUSE') {
+      console.error(
+        `[server] Port ${PORT} is already in use. Stop the other process or set PORT to a different value in .env.`,
+      );
+    } else {
+      console.error(`[server] Failed to start:\n${formatSqlError(error)}`);
+    }
     process.exit(1);
   }
 }

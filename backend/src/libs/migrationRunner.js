@@ -1,4 +1,4 @@
-const { getPool, sql } = require('./db');
+const { getPool, sql, formatSqlError } = require('./db');
 const fs = require('fs');
 const path = require('path');
 
@@ -46,7 +46,7 @@ async function runMigration(pool, migrationPath, migrationName) {
     try {
       await pool.request().query(batch);
     } catch (error) {
-      console.error(`[Migration] Error in batch:`, error.message);
+      console.error(`[Migration] Error in ${migrationName}:\n${formatSqlError(error)}`);
       throw error;
     }
   }
@@ -101,7 +101,7 @@ async function runMigrations() {
       console.log(`[Migration] ✓ Successfully ran ${ranCount} new migration(s)`);
     }
   } catch (error) {
-    console.error('[Migration] Failed:', error.message);
+    console.error(`[Migration] Failed:\n${formatSqlError(error)}`);
     throw error;
   }
 }
