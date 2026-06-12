@@ -1,115 +1,61 @@
-import { Link } from 'react-router'
-import { ArrowRight, Sparkles, Truck, ShieldCheck, Headset } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { PageContainer, SectionHeading } from '@/components/layout/PageContainer'
-import { ProductGrid } from '@/components/common/ProductGrid'
-import { useCategories, useProducts } from '@/features/catalog/api'
+import { PageContainer } from '@/components/layout/PageContainer'
+import { useBrands, useCategories, useProducts } from '@/features/catalog/api'
+import { BrandMarquee } from '@/features/home/BrandMarquee'
+import { CategoryPills } from '@/features/home/CategoryPills'
+import { FlashSaleSection } from '@/features/home/FlashSaleSection'
+import { HeroCarousel } from '@/features/home/HeroCarousel'
+import { MidPageBanners } from '@/features/home/MidPageBanners'
+import { NewsletterCta } from '@/features/home/NewsletterCta'
+import { ProductRowSection } from '@/features/home/ProductRowSection'
+import { ShopByNeed } from '@/features/home/ShopByNeed'
+import { Testimonials } from '@/features/home/Testimonials'
+
+const BEST_SELLER_TABS = [
+  { label: 'Tất cả', to: '/products?sortBy=popular' },
+  { label: 'Dưới 50k', to: '/products?sortBy=popular&maxPrice=50000' },
+  { label: '50k – 200k', to: '/products?sortBy=popular&minPrice=50000&maxPrice=200000' },
+  { label: 'Trên 200k', to: '/products?sortBy=popular&minPrice=200000' },
+] as const
 
 export function HomePage() {
   const { data: categories = [] } = useCategories()
-  const flashSale = useProducts({ status: 'active', isFlashSale: true, limit: 10 })
-  const bestSellers = useProducts({ status: 'active', sortBy: 'popular', limit: 10 })
+  const { data: brands = [], isLoading: brandsLoading } = useBrands()
+
+  const flashSale = useProducts({ status: 'active', isFlashSale: true, limit: 12 })
+  const bestSellers = useProducts({ status: 'active', sortBy: 'popular', limit: 12 })
+  const newArrivals = useProducts({ status: 'active', sortBy: 'newest', limit: 12 })
 
   return (
     <div>
-      {/* Hero */}
-      <section className="bg-gradient-to-br from-brand-50 via-background to-secondary">
-        <PageContainer className="grid items-center gap-8 py-12 lg:grid-cols-2 lg:py-20">
-          <div className="space-y-5">
-            <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
-              <Sparkles className="size-4" /> Văn phòng phẩm chính hãng
-            </span>
-            <h1 className="text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl">
-              Mọi thứ cho{' '}
-              <span className="text-primary">học tập &amp; công việc</span>
-            </h1>
-            <p className="max-w-md text-muted-foreground">
-              Bút, giấy, dụng cụ văn phòng chất lượng cao. Giá sỉ hấp dẫn, in ấn
-              tùy chỉnh theo yêu cầu, giao hàng nhanh chóng.
-            </p>
-            <div className="flex flex-wrap gap-3">
-              <Button asChild size="lg" className="gap-2">
-                <Link to="/products">
-                  Mua ngay <ArrowRight className="size-4" />
-                </Link>
-              </Button>
-              <Button asChild size="lg" variant="outline">
-                <Link to="/products?isFlashSale=true">Flash Sale</Link>
-              </Button>
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-4">
-            {[
-              { icon: Truck, label: 'Giao nhanh toàn quốc' },
-              { icon: ShieldCheck, label: 'Hàng chính hãng' },
-              { icon: Headset, label: 'Hỗ trợ tận tâm' },
-            ].map((f) => (
-              <Card key={f.label} className="items-center gap-2 p-4 text-center">
-                <span className="grid size-12 place-items-center rounded-full bg-secondary text-primary">
-                  <f.icon className="size-6" />
-                </span>
-                <p className="text-xs font-medium">{f.label}</p>
-              </Card>
-            ))}
-          </div>
-        </PageContainer>
-      </section>
+      <HeroCarousel />
 
-      <PageContainer className="space-y-12">
-        {/* Categories */}
-        <section>
-          <SectionHeading title="Danh mục nổi bật" />
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            {categories.map((c) => (
-              <Link key={c.id} to={`/categories/${c.slug}`}>
-                <Card className="items-center gap-2 p-4 text-center transition-colors hover:border-primary">
-                  {c.image ? (
-                    <img src={c.image} alt={c.name} className="size-12 rounded-lg object-cover" />
-                  ) : (
-                    <span className="grid size-12 place-items-center rounded-lg bg-secondary text-primary font-bold">
-                      {c.name.charAt(0)}
-                    </span>
-                  )}
-                  <p className="line-clamp-1 text-sm font-medium">{c.name}</p>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        </section>
-
-        {/* Flash sale */}
-        {flashSale.isLoading || (flashSale.data?.items && flashSale.data.items.length > 0) ? (
-          <section>
-            <SectionHeading
-              title="⚡ Flash Sale"
-              description="Ưu đãi có hạn, nhanh tay kẻo lỡ!"
-              action={
-                <Button asChild variant="ghost" size="sm" className="gap-1">
-                  <Link to="/products?isFlashSale=true">
-                    Xem tất cả <ArrowRight className="size-4" />
-                  </Link>
-                </Button>
-              }
-            />
-            <ProductGrid products={flashSale.data?.items ?? []} loading={flashSale.isLoading} skeletonCount={5} />
-          </section>
-        ) : null}
-
-        {/* Best sellers */}
-        <section>
-          <SectionHeading
-            title="Bán chạy nhất"
-            action={
-              <Button asChild variant="ghost" size="sm" className="gap-1">
-                <Link to="/products">
-                  Xem tất cả <ArrowRight className="size-4" />
-                </Link>
-              </Button>
-            }
-          />
-          <ProductGrid products={bestSellers.data?.items ?? []} loading={bestSellers.isLoading} />
-        </section>
+      <PageContainer className="space-y-16 py-10">
+        <CategoryPills categories={categories} />
+        <FlashSaleSection
+          products={flashSale.data?.items ?? []}
+          loading={flashSale.isLoading}
+        />
+        <ProductRowSection
+          title="Bán chạy tuần này"
+          description="Sản phẩm được khách hàng tin dùng nhiều nhất"
+          viewAllTo="/products?sortBy=popular"
+          products={bestSellers.data?.items ?? []}
+          loading={bestSellers.isLoading}
+          tabs={[...BEST_SELLER_TABS]}
+          activeTabTo={BEST_SELLER_TABS[0].to}
+        />
+        <ProductRowSection
+          title="Hàng mới về"
+          description="Cập nhật sản phẩm mới nhất từ kho hàng"
+          viewAllTo="/products?sortBy=newest"
+          products={newArrivals.data?.items ?? []}
+          loading={newArrivals.isLoading}
+        />
+        <ShopByNeed />
+        <MidPageBanners />
+        <BrandMarquee brands={brands} loading={brandsLoading} />
+        <Testimonials />
+        <NewsletterCta />
       </PageContainer>
     </div>
   )

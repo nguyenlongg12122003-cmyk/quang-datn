@@ -1,7 +1,13 @@
 import { Link } from 'react-router'
-import { Heart, Menu, ShoppingCart } from 'lucide-react'
+import { ChevronDown, Heart, LayoutGrid, Menu, ShoppingCart } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import {
   Sheet,
   SheetContent,
@@ -48,6 +54,12 @@ export function Header() {
                   {c.name}
                 </Link>
               ))}
+              <Link
+                to="/products?isFlashSale=true"
+                className="rounded-md px-3 py-2 text-sm hover:bg-accent"
+              >
+                Flash Sale
+              </Link>
               <Link to="/vouchers" className="rounded-md px-3 py-2 text-sm hover:bg-accent">
                 Voucher
               </Link>
@@ -57,16 +69,46 @@ export function Header() {
 
         <Logo />
 
-        {/* Desktop categories */}
+        {/* Desktop navigation */}
         <nav className="hidden items-center gap-1 lg:flex">
           <Button asChild variant="ghost" size="sm">
             <Link to="/products">Sản phẩm</Link>
           </Button>
-          {categories.slice(0, 4).map((c) => (
+
+          {categories.length > 0 ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="gap-1">
+                  <LayoutGrid className="size-4" aria-hidden />
+                  Danh mục
+                  <ChevronDown className="size-3.5 opacity-60" aria-hidden />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-64">
+                {categories.map((c) => (
+                  <DropdownMenuItem key={c.id} asChild>
+                    <Link to={`/categories/${c.slug}`} className="cursor-pointer">
+                      {c.name}
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuItem asChild>
+                  <Link to="/products" className="cursor-pointer font-medium text-primary">
+                    Xem tất cả sản phẩm
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
+
+          {categories.slice(0, 3).map((c) => (
             <Button key={c.id} asChild variant="ghost" size="sm">
               <Link to={`/categories/${c.slug}`}>{c.name}</Link>
             </Button>
           ))}
+          <Button asChild variant="ghost" size="sm">
+            <Link to="/products?isFlashSale=true">Flash Sale</Link>
+          </Button>
           <Button asChild variant="ghost" size="sm">
             <Link to="/vouchers">Voucher</Link>
           </Button>
