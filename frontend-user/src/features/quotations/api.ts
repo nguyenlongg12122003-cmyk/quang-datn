@@ -31,3 +31,11 @@ export function useConvertQuotation() {
     },
   })
 }
+
+export function useCancelQuotation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: quotationApi.cancel,
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.quotations.mine }),
+  })
+}

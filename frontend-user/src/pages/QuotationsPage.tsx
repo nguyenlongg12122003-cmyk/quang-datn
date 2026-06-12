@@ -1,16 +1,18 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { ChevronDown, ChevronUp, FileText, ShoppingCart } from 'lucide-react'
+import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { PageContainer } from '@/components/layout/PageContainer'
 import { EmptyState } from '@/components/common/EmptyState'
 import { useBusinessProfile } from '@/features/business/api'
-import { useMyQuotations } from '@/features/quotations/api'
+import { useCancelQuotation, useMyQuotations } from '@/features/quotations/api'
 import { ConvertQuotationDialog } from '@/features/quotations/ConvertQuotationDialog'
 import { QuotationItemsList } from '@/features/quotations/QuotationItemsList'
 import {
+  canCancelQuotation,
   canConvertQuotation,
   getQuotationStatusLabel,
   isQuotationExpired,
@@ -24,14 +26,17 @@ function QuotationCard({
   quotation,
   business,
   onConvert,
+  onCancel,
 }: {
   quotation: Quotation
   business: ReturnType<typeof useBusinessProfile>['data']
   onConvert: (quotation: Quotation) => void
+  onCancel: (quotation: Quotation) => void
 }) {
   const [expanded, setExpanded] = useState(false)
   const expired = isQuotationExpired(quotation)
   const convertible = canConvertQuotation(quotation)
+  const cancellable = canCancelQuotation(quotation)
   const statusLabel = getQuotationStatusLabel(quotation, QUOTATION_STATUS_LABELS)
 
   return (
@@ -99,6 +104,11 @@ function QuotationCard({
               Chuyển thành đơn hàng
             </Button>
           ) : null}
+          {cancellable ? (
+            <Button size="sm" variant="outline" onClick={() => onCancel(quotation)}>
+              Hủy báo giá
+            </Button>
+          ) : null}
           {quotation.status === 'sent' && !expired ? (
             <span className="self-center text-xs text-muted-foreground">Đang chờ admin duyệt</span>
           ) : null}
@@ -117,6 +127,15 @@ export function QuotationsPage() {
   const { data: business } = useBusinessProfile()
   const { data: quotations = [], isLoading } = useMyQuotations()
   const [convertTarget, setConvertTarget] = useState<Quotation | null>(null)
+  const cancelQuotation = useCancelQuotation()
+
+  const handleCancel = (quotation: Quotation) => {
+    if (!confirm(`Hủy báo giá ${quotation.code}?`)) return
+    cancelQuotation.mutate(quotation.id, {
+      onSuccess: (res) => toast.success(res.message || 'Đã hủy báo giá'),
+      onError: (err: any) => toast.error(err?.response?.data?.message || 'Hủy thất bại'),
+    })
+  }
 
   if (!business?.profile || business.profile.status !== 'approved') {
     return (
@@ -134,7 +153,10 @@ export function QuotationsPage() {
   return (
     <PageContainer className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">Báo giá của tôi</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Báo giá của tôi</h1>
+          <p className="text-xs text-muted-foreground">Giá áp dụng theo hồ sơ B2B (giá sỉ/đại lý). Bạn có thể hủy báo giá đang chờ duyệt.</p>
+        </div>
         <Button asChild variant="outline" className="gap-2">
           <Link to="/cart"><ShoppingCart className="size-4" /> Tạo từ giỏ hàng</Link>
         </Button>
@@ -151,6 +173,7 @@ export function QuotationsPage() {
             quotation={q}
             business={business}
             onConvert={setConvertTarget}
+            onCancel={handleCancel}
           />
         ))
       )}

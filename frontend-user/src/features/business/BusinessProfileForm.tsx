@@ -12,11 +12,13 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { BUSINESS_STATUS_LABELS, BUSINESS_TYPE_LABELS } from '@/lib/constants'
+import { BUSINESS_STATUS_LABELS, BUSINESS_TYPE_LABELS, DOCUMENT_TYPE_LABELS } from '@/lib/constants'
 import { formatCurrency } from '@/lib/format'
 import { getErrorMessage } from '@/lib/api/axios'
 import { useBusinessProfile, useRegisterBusiness, useResubmitBusiness } from '@/features/business/api'
-import type { BusinessProfile, BusinessType } from '@/types'
+import type { BusinessDocument, BusinessProfile, BusinessType } from '@/types'
+import { isCloudinaryConfigured, uploadImageToCloudinary } from '@/lib/cloudinary'
+import { Upload, Trash2, FileText } from 'lucide-react'
 
 type FormState = {
   companyName: string
@@ -26,6 +28,7 @@ type FormState = {
   contactPhone: string
   contactEmail: string
   invoiceAddress: string
+  documents: BusinessDocument[]
 }
 
 const emptyForm = (): FormState => ({
@@ -36,6 +39,7 @@ const emptyForm = (): FormState => ({
   contactPhone: '',
   contactEmail: '',
   invoiceAddress: '',
+  documents: [],
 })
 
 function profileToForm(profile: BusinessProfile): FormState {
@@ -47,6 +51,7 @@ function profileToForm(profile: BusinessProfile): FormState {
     contactPhone: profile.contactPhone ?? '',
     contactEmail: profile.contactEmail ?? '',
     invoiceAddress: profile.invoiceAddress ?? '',
+    documents: Array.isArray(profile.documents) ? profile.documents : [],
   }
 }
 
@@ -151,6 +156,14 @@ function RejectedBusinessForm({
         Vui lòng cập nhật thông tin và gửi lại hồ sơ để admin xem xét.
       </p>
       <BusinessRegistrationFields form={form} onChange={setForm} />
+
+      {/* Documents (resubmit also carries forward previous docs; user can add more via main flow if needed) */}
+      {form.documents && form.documents.length > 0 && (
+        <div className="text-xs text-muted-foreground">
+          Giấy tờ hiện có: {form.documents.length} file (sẽ được gửi lại cùng hồ sơ)
+        </div>
+      )}
+
       <Button onClick={submit} disabled={isPending}>
         Gửi lại đăng ký doanh nghiệp
       </Button>
@@ -230,12 +243,111 @@ export function BusinessProfileForm() {
     )
   }
 
+  // Documents manager (reuses Cloudinary for files - business licenses, authorization letters, etc.)
+  const addDocument = async () => {
+    if (!isCloudinaryConfigured()) {
+      toast.error('Cloudinary chưa cấu hình. Bạn vẫn có thể dán URL file đã upload thủ công.')
+      return
+    }
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'image/*,.pdf,.doc,.docx'
+    input.onchange = async () => {
+      const file = input.files?.[0]
+      if (!file) return
+      if (file.size > 8 * 1024 * 1024) {
+        toast.error('File quá lớn (tối đa ~8MB)')
+        return
+      }
+      try {
+        const url = await uploadImageToCloudinary(file) // works for images; for PDF use Cloudinary raw if preset allows
+        const newDoc: BusinessDocument = {
+          type: 'other',
+          url,
+          name: file.name,
+          uploadedAt: new Date().toISOString(),
+        }
+        setForm({ ...form, documents: [...form.documents, newDoc] })
+        toast.success('Đã tải giấy tờ lên')
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : 'Tải file thất bại')
+      }
+    }
+    input.click()
+  }
+
+  const updateDocType = (index: number, type: BusinessDocument['type']) => {
+    const next = [...form.documents]
+    next[index] = { ...next[index], type }
+    setForm({ ...form, documents: next })
+  }
+
+  const removeDoc = (index: number) => {
+    const next = form.documents.filter((_, i) => i !== index)
+    setForm({ ...form, documents: next })
+  }
+
+  const manualAddUrl = () => {
+    const url = prompt('Dán URL file (Cloudinary hoặc host khác):')
+    if (!url) return
+    const newDoc: BusinessDocument = {
+      type: 'other',
+      url: url.trim(),
+      name: url.split('/').pop() || 'document',
+      uploadedAt: new Date().toISOString(),
+    }
+    setForm({ ...form, documents: [...form.documents, newDoc] })
+  }
+
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
         Đăng ký tài khoản doanh nghiệp để được báo giá, mua theo lốc/thùng và thanh toán công nợ.
       </p>
       <BusinessRegistrationFields form={form} onChange={setForm} />
+
+      {/* Documents upload section for better admin verification */}
+      <div className="space-y-2">
+        <Label>Giấy tờ đính kèm (khuyến nghị — giúp admin duyệt nhanh và chính xác hơn)</Label>
+        <div className="space-y-2">
+          {form.documents.length === 0 && (
+            <p className="text-xs text-muted-foreground">Chưa có giấy tờ. Nên đính kèm Giấy phép KD + Giấy ủy quyền (nếu có).</p>
+          )}
+          {form.documents.map((doc, idx) => (
+            <div key={idx} className="flex items-center gap-2 rounded border p-2 text-sm">
+              <FileText className="size-4 shrink-0" />
+              <a href={doc.url} target="_blank" rel="noreferrer" className="truncate font-medium text-primary hover:underline">
+                {doc.name || doc.url}
+              </a>
+              <select
+                value={doc.type}
+                onChange={(e) => updateDocType(idx, e.target.value as BusinessDocument['type'])}
+                className="ml-auto rounded border px-2 py-1 text-xs"
+              >
+                {Object.entries(DOCUMENT_TYPE_LABELS).map(([val, lab]) => (
+                  <option key={val} value={val}>{lab}</option>
+                ))}
+              </select>
+              <Button variant="ghost" size="icon" onClick={() => removeDoc(idx)}>
+                <Trash2 className="size-4" />
+              </Button>
+            </div>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={addDocument} disabled={!isCloudinaryConfigured()}>
+            <Upload className="mr-1 size-4" /> Tải file lên (Cloudinary)
+          </Button>
+          <Button type="button" variant="ghost" size="sm" onClick={manualAddUrl}>
+            Dán URL thủ công
+          </Button>
+          {!isCloudinaryConfigured() && (
+            <span className="text-[10px] text-destructive self-center">Cloudinary chưa cấu hình — chỉ hỗ trợ dán URL</span>
+          )}
+        </div>
+        <p className="text-[10px] text-muted-foreground">File được lưu an toàn qua Cloudinary. Admin sẽ xem được khi duyệt.</p>
+      </div>
+
       <Button onClick={() => validateAndSubmit(register.mutate)} disabled={register.isPending}>
         Gửi đăng ký doanh nghiệp
       </Button>

@@ -1,6 +1,16 @@
 import type { CustomizationOption, CustomerType, Product } from '@/types'
 
-/** Backend accepts options as plain strings or rich objects; normalize to objects. */
+/**
+ * CLIENT PRICING HELPERS — MUST STAY IN SYNC WITH BACKEND
+ *
+ * See canonical model and full precedence in:
+ *   backend/src/services/priceService.js  (CANONICAL comment at top)
+ *
+ * These functions are for display / cart snapshot only.
+ * Báo giá creation and admin quote edit are always server-authoritative.
+ */
+
+ /** Backend accepts options as plain strings or rich objects; normalize to objects. */
 export function normalizeCustomizationOptions(
   options: Product['customizationOptions'],
 ): CustomizationOption[] {
@@ -55,7 +65,12 @@ export function getPackagingUnitPrice(
   packQty: number,
   customerType: CustomerType = 'retail',
 ) {
-  const unit = (product.packagingUnits ?? []).find((u) => u.label === unitLabel)
+  if (!unitLabel) return null
+  const normalized = String(unitLabel).trim().replace(/\s+/g, ' ')
+  // Use robust match (same spirit as backend) to avoid price display bugs when labels have minor whitespace differences
+  const unit = (product.packagingUnits ?? []).find(
+    (u) => (u.label || '').trim().replace(/\s+/g, ' ') === normalized
+  )
   if (!unit) return null
   const totalQty = unit.qtyPerUnit * packQty
   if (unit.price != null) return unit.price / unit.qtyPerUnit

@@ -1,6 +1,12 @@
 import { api } from '@/lib/api/axios'
 import type { Address, PaymentMethod, Quotation, ShippingMethod } from '@/types'
 
+/**
+ * MIRROR API CLIENT (endpoints)
+ * frontend-admin/src/lib/api/endpoints/quotations.ts is very similar.
+ * Keep method signatures in sync.
+ */
+
 export interface CreateQuotationPayload {
   items: Array<{
     productId: string
@@ -11,7 +17,7 @@ export interface CreateQuotationPayload {
   }>
   note?: string
   validDays?: number
-  discount?: number
+  // discount removed: server always starts at 0. Admin adjusts via edit for B2B negotiation.
 }
 
 export const quotationApi = {
@@ -34,4 +40,6 @@ export const quotationApi = {
         payload,
       )
       .then((r) => r.data),
+  cancel: (id: string) =>
+    api.post<{ message: string; quotation?: Quotation }>(`/quotations/${id}/cancel`).then((r) => r.data),
 }

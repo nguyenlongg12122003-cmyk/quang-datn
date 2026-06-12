@@ -1,6 +1,12 @@
 import { formatCurrency } from '@/lib/format'
 import type { QuotationItem } from '@/types'
 
+/**
+ * MIRROR COMPONENT — KEEP IN SYNC
+ * frontend-admin/src/features/quotations/QuotationItemsList.tsx (minor differences for admin view only).
+ * Prefer not to diverge.
+ */
+
 interface QuotationItemsListProps {
   items: QuotationItem[]
   compact?: boolean

@@ -25,6 +25,7 @@ import {
 } from '@/lib/product'
 import { useCartStore } from '@/stores/cart-store'
 import { useAuthStore } from '@/stores/auth-store'
+import { CUSTOMER_TYPE_LABELS } from '@/lib/constants'
 import {
   useAddToWishlist,
   useRemoveFromWishlist,
@@ -138,6 +139,11 @@ export function PurchasePanel({ product }: PurchasePanelProps) {
           <Badge className="mt-2 bg-commerce text-commerce-foreground hover:bg-commerce/90">
             ⚡ Flash Sale
           </Badge>
+        ) : null}
+        {customerType !== 'retail' ? (
+          <div className="mt-2 text-xs text-primary font-medium">
+            Giá {CUSTOMER_TYPE_LABELS[customerType]} đang áp dụng (theo hồ sơ doanh nghiệp B2B đã duyệt)
+          </div>
         ) : null}
       </div>
 

@@ -16,7 +16,7 @@ import { formatCurrency } from '@/lib/format'
 export interface CreateQuotationOptions {
   note?: string
   validDays?: number
-  discount?: number
+  // discount removed — server forces 0 at creation. Admin can revise later.
 }
 
 interface CreateQuotationDialogProps {
@@ -36,15 +36,12 @@ export function CreateQuotationDialog({
 }: CreateQuotationDialogProps) {
   const [note, setNote] = useState('')
   const [validDays, setValidDays] = useState('7')
-  const [discount, setDiscount] = useState('0')
 
   const handleSubmit = () => {
     const parsedValidDays = Math.max(1, Number(validDays) || 7)
-    const parsedDiscount = Math.max(0, Number(discount) || 0)
     onSubmit({
       note: note.trim() || undefined,
       validDays: parsedValidDays,
-      discount: parsedDiscount,
     })
   }
 
@@ -54,7 +51,7 @@ export function CreateQuotationDialog({
         <DialogHeader>
           <DialogTitle>Tạo báo giá B2B</DialogTitle>
           <DialogDescription>
-            Tạm tính giỏ hàng: {formatCurrency(subtotal)}. Báo giá sẽ được gửi cho admin duyệt.
+            Tạm tính giỏ hàng (giá bán lẻ hiện tại): {formatCurrency(subtotal)}. Báo giá sẽ được tính lại theo giá B2B/sỉ/đại lý theo hồ sơ doanh nghiệp của bạn, sau đó gửi admin duyệt. Bạn có thể hủy báo giá đang ở trạng thái "Đã gửi" trước khi admin duyệt.
           </DialogDescription>
         </DialogHeader>
 
@@ -70,22 +67,12 @@ export function CreateQuotationDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="quote-discount">Chiết khấu (VNĐ)</Label>
-            <Input
-              id="quote-discount"
-              type="number"
-              min={0}
-              value={discount}
-              onChange={(e) => setDiscount(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
             <Label htmlFor="quote-note">Ghi chú</Label>
             <Textarea
               id="quote-note"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="Yêu cầu giao hàng, điều kiện thanh toán..."
+              placeholder="Yêu cầu giao hàng, điều kiện thanh toán, yêu cầu đặc biệt..."
               rows={3}
             />
           </div>

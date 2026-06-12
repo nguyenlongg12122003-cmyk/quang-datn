@@ -54,6 +54,26 @@ export const BUSINESS_STATUS_LABELS = {
   rejected: 'Từ chối',
 } as const
 
+export const DOCUMENT_TYPE_LABELS: Record<string, string> = {
+  business_license: 'Giấy phép kinh doanh / ĐKKD',
+  authorization_letter: 'Giấy ủy quyền',
+  representative_id: 'CCCD / CMND người đại diện',
+  other: 'Giấy tờ khác',
+} as const
+
+export const REVIEW_ACTION_LABELS: Record<string, string> = {
+  submitted: 'Gửi đăng ký',
+  resubmitted: 'Gửi lại sau từ chối',
+  approved: 'Đã duyệt',
+  rejected: 'Từ chối',
+} as const
+
+export const CUSTOMER_TYPE_LABELS = {
+  retail: 'Giá lẻ',
+  wholesale: 'Giá sỉ',
+  enterprise: 'Giá đại lý',
+} as const
+
 export const QUOTATION_STATUS_LABELS = {
   draft: 'Nháp',
   sent: 'Đã gửi',
@@ -61,6 +81,7 @@ export const QUOTATION_STATUS_LABELS = {
   rejected: 'Từ chối',
   converted: 'Đã chuyển đơn',
   expired: 'Hết hạn',
+  cancelled: 'Đã hủy',
 } as const
 
 export interface ShippingOption {

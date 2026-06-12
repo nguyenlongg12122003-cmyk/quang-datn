@@ -18,3 +18,20 @@ export function useUpdateQuotationStatus() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['quotations'] }),
   })
 }
+
+export function useCancelQuotation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: quotationApi.cancel,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['quotations'] }),
+  })
+}
+
+export function useUpdateQuotation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...patch }: { id: string } & { discount?: number; validUntil?: string; note?: string | null }) =>
+      quotationApi.update(id, patch),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['quotations'] }),
+  })
+}

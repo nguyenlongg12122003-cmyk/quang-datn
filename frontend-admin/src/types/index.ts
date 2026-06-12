@@ -99,9 +99,40 @@ export interface BusinessProfile {
   approvedAt?: string | null
   note?: string | null
   createdAt: string
+  // New for improved verification accuracy
+  documents?: BusinessDocument[]
+  reviewHistory?: BusinessReviewEvent[]
+  // Stats attached by /manage for quick "view user orders" context
+  stats?: {
+    orderCount: number
+    totalSpent: number
+    lastOrderAt?: string | null
+    creditOrderCount: number
+    creditTotal: number
+  }
 }
 
-export type QuotationStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'converted' | 'expired'
+export type BusinessDocumentType = 'business_license' | 'authorization_letter' | 'representative_id' | 'other'
+
+export interface BusinessDocument {
+  type: BusinessDocumentType
+  url: string
+  name?: string
+  uploadedAt: string
+}
+
+export interface BusinessReviewEvent {
+  action: 'submitted' | 'resubmitted' | 'approved' | 'rejected'
+  status: BusinessStatus
+  creditLimit?: number
+  paymentTermDays?: number
+  customerType?: string
+  note?: string
+  performedBy?: string
+  performedAt: string
+}
+
+export type QuotationStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'converted' | 'expired' | 'cancelled'
 
 export interface QuotationItem {
   id?: number

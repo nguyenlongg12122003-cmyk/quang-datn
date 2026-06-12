@@ -180,7 +180,12 @@ router.get('/products', async (req, res, next) => {
       conditions.push('isCustomizable = 1');
     }
     if (req.query.hasWholesale === 'true') {
-      conditions.push("wholesalePrice != '[]' AND wholesalePrice IS NOT NULL");
+      // Improved filter (Phase 3): also surface products with groupPrices (wholesale/enterprise) or packagingUnits that have explicit prices
+      conditions.push(`
+        (wholesalePrice != '[]' AND wholesalePrice IS NOT NULL)
+        OR (groupPrices IS NOT NULL AND groupPrices <> '{}' AND groupPrices <> 'null')
+        OR (packagingUnits IS NOT NULL AND packagingUnits LIKE '%"price"%')
+      `);
     }
     if (status) {
       request.input('status', sql.NVarChar, String(status));

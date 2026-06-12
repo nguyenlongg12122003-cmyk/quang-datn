@@ -24,4 +24,7 @@ export const businessApi = {
     api
       .patch<{ profile: BusinessProfile; message: string }>(`/business/${userId}/review`, payload)
       .then((r) => r.data),
+  // Mock (or real in future) MST lookup to help admin verify the submitted tax code
+  lookupMst: (taxCode: string) =>
+    api.get('/business/mst-lookup', { params: { taxCode } }).then((r) => r.data),
 }

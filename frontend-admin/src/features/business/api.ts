@@ -17,3 +17,10 @@ export function useReviewBusinessProfile() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['business', 'admin'] }),
   })
 }
+
+// Lightweight hook for MST lookup button in review cards
+export function useMstLookup() {
+  return useMutation({
+    mutationFn: (taxCode: string) => businessApi.lookupMst(taxCode),
+  })
+}

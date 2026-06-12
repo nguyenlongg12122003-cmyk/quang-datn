@@ -1,6 +1,11 @@
 import type { BusinessProfile, Quotation } from '@/types'
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/format'
 
+/**
+ * MIRROR / SHARED PRINT LOGIC
+ * Admin may use a similar or imported version. Keep visual output consistent for B2B quotes.
+ */
+
 function escapeHtml(text: string | null | undefined): string {
   return String(text ?? '')
     .replace(/&/g, '&amp;')

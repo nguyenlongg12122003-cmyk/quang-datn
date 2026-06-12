@@ -1,5 +1,33 @@
 const { safeJsonParse } = require('../utils/mapRows');
 
+/**
+ * CANONICAL B2B / WHOLESALE PRICING MODEL (as of Phase 3 improvements)
+ *
+ * Precedence for unit price of a line (applied in resolvePackagingSelection + getUnitPriceForQty):
+ * 1. Flash sale (if active) overrides everything for the base price.
+ * 2. If packagingUnit selected:
+ *    - If packagingUnits[].price is set (fixed pack price) → use that / qtyPerUnit.
+ *    - Else fall back to tier logic below on totalQty.
+ * 3. Tier / group pricing (customerType aware):
+ *    - enterprise → groupPrices.enterprise (preferred for approved enterprise accounts)
+ *    - wholesale  → groupPrices.wholesale
+ *    - fallback  → product.wholesalePrice (legacy array of {minQty, price})
+ *    - final fallback → product.price (retail)
+ * 4. Quantity tiers: the lowest matching tier price (minQty <= effective qty) wins, but never higher than base.
+ *
+ * Important:
+ * - customerType comes from users table (set on business approval).
+ * - Cart shows prices at add time (may be retail snapshot).
+ * - Báo giá creation ALWAYS re-prices server-side using current product + user's customerType.
+ * - Admin edit of a quote can further override unitPrices per line (negotiation).
+ *
+ * Keep this in sync with:
+ *   - frontend-user/src/lib/product.ts (client display helpers)
+ *   - Admin product form (groupPrices + packagingUnits + wholesaleTiers)
+ *
+ * Future: Prefer groupPrices over legacy wholesalePrice. wholesalePrice kept for read compat.
+ */
+
 function isFlashSaleActive(product) {
   if (!product.isFlashSale || product.flashSalePrice == null) return false;
   if (!product.flashSaleEnd) return true;
@@ -47,7 +75,9 @@ function normalizePackagingUnits(raw) {
   return parsed
     .map((unit) => {
       if (!unit || typeof unit !== 'object') return null;
-      const label = String(unit.label || unit.unit || '').trim();
+      // Robust normalization: trim + collapse multiple spaces (common source of "invalid packaging" errors)
+      const rawLabel = String(unit.label || unit.unit || '');
+      const label = rawLabel.trim().replace(/\s+/g, ' ');
       const qtyPerUnit = Number(unit.qtyPerUnit || unit.quantity || 0);
       const price = unit.price != null ? Number(unit.price) : null;
       if (!label || !Number.isFinite(qtyPerUnit) || qtyPerUnit <= 0) return null;
@@ -76,9 +106,14 @@ function resolvePackagingSelection(product, packagingUnit, packagingQty, custome
     };
   }
 
-  const selected = units.find((unit) => unit.label.toLowerCase() === normalizedLabel.toLowerCase());
+  const normalizedLabelForMatch = normalizedLabel.replace(/\s+/g, ' ').toLowerCase();
+  const selected = units.find((unit) => unit.label.toLowerCase() === normalizedLabelForMatch);
   if (!selected) {
-    throw new Error(`Quy cách đóng gói không hợp lệ: ${normalizedLabel}`);
+    // Make error message actionable for the end user (cart items can become stale if packaging labels change)
+    throw new Error(
+      `Quy cách đóng gói không hợp lệ: ${normalizedLabel}. ` +
+      `Vui lòng quay lại giỏ hàng, xóa sản phẩm này và thêm lại để cập nhật quy cách đóng gói hiện tại của sản phẩm.`
+    );
   }
 
   const totalQty = selected.qtyPerUnit * normalizedPackQty;

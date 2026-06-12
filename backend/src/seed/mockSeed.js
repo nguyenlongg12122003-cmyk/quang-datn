@@ -97,6 +97,12 @@ const businessProfiles = [
     approvedBy: null,
     note: null,
     createdAt: '2026-05-22T11:15:00Z',
+    documents: JSON.stringify([
+      { type: 'business_license', url: 'https://res.cloudinary.com/demo/image/upload/demo_gpkd.jpg', name: 'GPKD_Demo.pdf', uploadedAt: '2026-05-22T11:20:00Z' },
+    ]),
+    reviewHistory: JSON.stringify([
+      { action: 'submitted', status: 'pending', performedBy: 'user-5', performedAt: '2026-05-22T11:15:00Z' },
+    ]),
   },
 ];
 
@@ -894,13 +900,17 @@ async function seedData(pool, sql) {
       .input('approvedBy', sql.NVarChar, profile.approvedBy)
       .input('note', sql.NVarChar, profile.note)
       .input('createdAt', sql.DateTime2, profile.createdAt)
+      .input('documents', sql.NVarChar(sql.MAX), profile.documents || null)
+      .input('reviewHistory', sql.NVarChar(sql.MAX), profile.reviewHistory || null)
       .query(`
         INSERT INTO dbo.business_profiles (
           userId, companyName, taxCode, businessType, contactPerson, contactPhone, contactEmail,
-          invoiceAddress, creditLimit, paymentTermDays, [status], approvedAt, approvedBy, note, createdAt
+          invoiceAddress, creditLimit, paymentTermDays, [status], approvedAt, approvedBy, note, createdAt,
+          documents, reviewHistory
         ) VALUES (
           @userId, @companyName, @taxCode, @businessType, @contactPerson, @contactPhone, @contactEmail,
-          @invoiceAddress, @creditLimit, @paymentTermDays, @status, @approvedAt, @approvedBy, @note, @createdAt
+          @invoiceAddress, @creditLimit, @paymentTermDays, @status, @approvedAt, @approvedBy, @note, @createdAt,
+          @documents, @reviewHistory
         )
       `);
   }

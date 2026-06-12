@@ -142,21 +142,26 @@ export function CartPage() {
               Tiến hành thanh toán
             </Button>
             {canQuote ? (
-              <Button
-                className="w-full"
-                variant="outline"
-                onClick={() => {
-                  if (!token) {
-                    navigate('/login', { state: { from: '/cart' } })
-                    return
-                  }
-                  setQuoteDialogOpen(true)
-                }}
-                disabled={createQuotation.isPending}
-              >
-                <FileText className="mr-2 size-4" />
-                Tạo báo giá B2B
-              </Button>
+              <>
+                <Button
+                  className="w-full"
+                  variant="outline"
+                  onClick={() => {
+                    if (!token) {
+                      navigate('/login', { state: { from: '/cart' } })
+                      return
+                    }
+                    setQuoteDialogOpen(true)
+                  }}
+                  disabled={createQuotation.isPending}
+                >
+                  <FileText className="mr-2 size-4" />
+                  Tạo báo giá B2B
+                </Button>
+                <p className="text-[11px] text-muted-foreground text-center">
+                  Giá B2B/sỉ/đại lý sẽ được áp dụng tự động khi tạo báo giá (dựa trên hồ sơ doanh nghiệp đã duyệt). Giá trong giỏ là snapshot lẻ.
+                </p>
+              </>
             ) : null}
           </CardContent>
         </Card>
@@ -171,10 +176,13 @@ export function CartPage() {
           createQuotation.mutate(
             {
               ...options,
+              // note: discount intentionally omitted (server enforces 0 at create time)
               items: items.map((i) => ({
                 productId: i.productId,
                 quantity: i.quantity,
                 packagingUnit: i.packagingUnit ?? undefined,
+                // Note: packagingUnit is a string label. If it later becomes invalid on server (e.g. admin changed product packaging labels),
+                // the quote creation will give a clear "xóa và thêm lại" message.
                 packagingQty: i.packagingQty,
                 customization: i.customization ?? undefined,
               })),
