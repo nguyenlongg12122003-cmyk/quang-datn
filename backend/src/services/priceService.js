@@ -8,11 +8,11 @@ const { safeJsonParse } = require('../utils/mapRows');
  * 2. If packagingUnit selected:
  *    - If packagingUnits[].price is set (fixed pack price) → use that / qtyPerUnit.
  *    - Else fall back to tier logic below on totalQty.
- * 3. Tier / group pricing (customerType aware):
- *    - enterprise → groupPrices.enterprise (preferred for approved enterprise accounts)
- *    - wholesale  → groupPrices.wholesale
- *    - fallback  → product.wholesalePrice (legacy array of {minQty, price})
- *    - final fallback → product.price (retail)
+ * 3. Tier pricing (customerType aware — public bulk vs B2B are separate):
+ *    - retail     → product.wholesalePrice only (public “mua số lượng lớn” tiers)
+ *    - wholesale  → groupPrices.wholesale only (approved B2B sỉ)
+ *    - enterprise → groupPrices.enterprise only (approved B2B đại lý)
+ *    - no matching tiers → product.price / flash sale base
  * 4. Quantity tiers: the lowest matching tier price (minQty <= effective qty) wins, but never higher than base.
  *
  * Important:
@@ -25,8 +25,23 @@ const { safeJsonParse } = require('../utils/mapRows');
  *   - frontend-user/src/lib/product.ts (client display helpers)
  *   - Admin product form (groupPrices + packagingUnits + wholesaleTiers)
  *
- * Future: Prefer groupPrices over legacy wholesalePrice. wholesalePrice kept for read compat.
  */
+
+function getPublicBulkTierPrices(product) {
+  const wholesaleTiers = safeJsonParse(product.wholesalePrice, []);
+  return Array.isArray(wholesaleTiers) ? wholesaleTiers : [];
+}
+
+function getB2BTierPrices(product, customerType) {
+  const groupPrices = safeJsonParse(product.groupPrices, {});
+  if (customerType === 'enterprise' && Array.isArray(groupPrices.enterprise) && groupPrices.enterprise.length > 0) {
+    return groupPrices.enterprise;
+  }
+  if (customerType === 'wholesale' && Array.isArray(groupPrices.wholesale) && groupPrices.wholesale.length > 0) {
+    return groupPrices.wholesale;
+  }
+  return [];
+}
 
 function isFlashSaleActive(product) {
   if (!product.isFlashSale || product.flashSalePrice == null) return false;
@@ -42,19 +57,10 @@ function getEffectiveBasePrice(product) {
 }
 
 function getTierPrices(product, customerType = 'retail') {
-  const groupPrices = safeJsonParse(product.groupPrices, {});
-  const wholesaleTiers = safeJsonParse(product.wholesalePrice, []);
-
-  if (customerType === 'enterprise' && Array.isArray(groupPrices.enterprise) && groupPrices.enterprise.length > 0) {
-    return groupPrices.enterprise;
+  if (customerType === 'retail') {
+    return getPublicBulkTierPrices(product);
   }
-  if (customerType === 'wholesale' && Array.isArray(groupPrices.wholesale) && groupPrices.wholesale.length > 0) {
-    return groupPrices.wholesale;
-  }
-  if (Array.isArray(wholesaleTiers) && wholesaleTiers.length > 0) {
-    return wholesaleTiers;
-  }
-  return [];
+  return getB2BTierPrices(product, customerType);
 }
 
 function getUnitPriceForQty(product, qty, customerType = 'retail') {

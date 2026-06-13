@@ -301,7 +301,7 @@ export function BusinessProfileForm() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Đăng ký tài khoản doanh nghiệp để được báo giá, mua theo lốc/thùng và hưởng giá sỉ sau khi được duyệt.
+        Đăng ký tài khoản doanh nghiệp để mua theo lốc/thùng, hưởng giá sỉ và xuất hóa đơn VAT sau khi được duyệt.
       </p>
       <BusinessRegistrationFields form={form} onChange={setForm} />
 

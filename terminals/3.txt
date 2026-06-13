@@ -1,0 +1,18 @@
+---
+pid: 26948
+cwd: "D:\Projects\quang-datn"
+command: "cd D:\\Projects\\quang-datn\\frontend-user && npm run dev"
+started_at: 2026-06-13T14:52:36.512Z
+running_for_ms: 9564992  
+---
+
+> frontend-user@1.0.0 dev
+> vite
+
+error when starting dev server:
+Error: Port 5173 is already in use
+    at httpServerStart (file:///D:/Projects/quang-datn/frontend-user/node_modules/vite/dist/node/chunks/node.js:10706:10)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async startServer (file:///D:/Projects/quang-datn/frontend-user/node_modules/vite/dist/node/chunks/node.js:26485:30)
+    at async Object.listen (file:///D:/Projects/quang-datn/frontend-user/node_modules/vite/dist/node/chunks/node.js:26302:4)
+    at async CAC.<anonymous> (file:///D:/Projects/quang-datn/frontend-user/node_modules/vite/dist/node/cli.js:721:3)

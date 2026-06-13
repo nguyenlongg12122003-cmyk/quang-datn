@@ -13,7 +13,8 @@ import { EmptyState } from '@/components/common/EmptyState'
 import { AddressFormDialog } from '@/features/account/AddressFormDialog'
 import { VoucherInput, type AppliedVoucher } from '@/features/vouchers/VoucherInput'
 import { useCreateOrder } from '@/features/orders/api'
-import { useBusinessProfile } from '@/features/business/api'
+import { useApprovedBusinessPricing } from '@/features/business/useApprovedBusinessPricing'
+import { useCartReprice } from '@/features/cart/useCartReprice'
 import { useCartStore, selectCartSubtotal, cartItemTotal } from '@/stores/cart-store'
 import { useAuthStore } from '@/stores/auth-store'
 import { formatCurrency } from '@/lib/format'
@@ -33,7 +34,8 @@ export function CheckoutPage() {
   const clearCart = useCartStore((s) => s.clear)
   const user = useAuthStore((s) => s.user)
   const createOrder = useCreateOrder()
-  const { data: businessData } = useBusinessProfile()
+  const { isApprovedBusiness, profile: businessProfile } = useApprovedBusinessPricing()
+  useCartReprice()
 
   const addresses = user?.addresses ?? []
   const defaultAddressId = addresses.find((a) => a.isDefault)?.id ?? addresses[0]?.id
@@ -93,15 +95,14 @@ export function CheckoutPage() {
         discount,
         invoiceInfo: requestInvoice
           ? {
-              taxCode: businessData?.profile?.taxCode ?? undefined,
-              companyName: businessData?.profile?.companyName,
-              invoiceAddress: businessData?.profile?.invoiceAddress ?? undefined,
+              taxCode: businessProfile?.taxCode ?? undefined,
+              companyName: businessProfile?.companyName,
+              invoiceAddress: businessProfile?.invoiceAddress ?? undefined,
             }
           : undefined,
       },
       {
         onSuccess: (result) => {
-          // Gateway methods return a payment URL to redirect the browser to.
           if (result.paymentUrl) {
             clearCart()
             window.location.assign(result.paymentUrl)
@@ -119,9 +120,13 @@ export function CheckoutPage() {
   return (
     <PageContainer className="space-y-6">
       <h1 className="text-2xl font-bold">Thanh toán</h1>
+      {isApprovedBusiness ? (
+        <p className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-muted-foreground">
+          Tài khoản doanh nghiệp: giá sỉ/đại lý sẽ được áp dụng khi hệ thống xử lý đơn (theo nhóm giá đã duyệt).
+        </p>
+      ) : null}
       <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
         <div className="space-y-5">
-          {/* Address */}
           <Card>
             <CardHeader className="flex-row items-center justify-between">
               <CardTitle className="text-base">Địa chỉ giao hàng</CardTitle>
@@ -165,7 +170,6 @@ export function CheckoutPage() {
             </CardContent>
           </Card>
 
-          {/* Shipping */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Phương thức vận chuyển</CardTitle>
@@ -194,7 +198,6 @@ export function CheckoutPage() {
             </CardContent>
           </Card>
 
-          {/* Payment */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Phương thức thanh toán</CardTitle>
@@ -219,7 +222,7 @@ export function CheckoutPage() {
             </CardContent>
           </Card>
 
-          {businessData?.profile?.status === 'approved' ? (
+          {isApprovedBusiness ? (
             <Card>
               <CardHeader><CardTitle className="text-base">Hóa đơn VAT</CardTitle></CardHeader>
               <CardContent>
@@ -235,7 +238,6 @@ export function CheckoutPage() {
             </Card>
           ) : null}
 
-          {/* Note */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Ghi chú</CardTitle>
@@ -252,7 +254,6 @@ export function CheckoutPage() {
           </Card>
         </div>
 
-        {/* Summary */}
         <Card className="h-fit lg:sticky lg:top-20">
           <CardContent className="space-y-4 p-5">
             <h2 className="font-semibold">Đơn hàng ({items.length})</h2>

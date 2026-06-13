@@ -70,8 +70,8 @@ export const HERO_SLIDES: HeroSlide[] = [
     description: 'Bút, sổ tay, name card, áo thun — miễn phí tư vấn thiết kế mẫu cho doanh nghiệp.',
     ctaLabel: 'Xem sản phẩm in ấn',
     ctaTo: '/products?isCustomizable=true',
-    secondaryLabel: 'Báo giá sỉ',
-    secondaryTo: '/quotations',
+    secondaryLabel: 'Đăng ký DN',
+    secondaryTo: '/account',
     accent: 'primary',
     image: '/images/banners/custom-print.jpg',
     imageAlt: 'Dịch vụ in ấn tùy chỉnh logo trên bút và văn phòng phẩm',
@@ -107,9 +107,9 @@ export const SHOP_BY_NEED_ITEMS: ShopByNeedItem[] = [
   {
     id: 'school',
     title: 'Trường học & cơ quan',
-    description: 'Mua sỉ, báo giá theo khối lượng, hỗ trợ hóa đơn VAT.',
+    description: 'Mua sỉ theo khối lượng, hỗ trợ hóa đơn VAT cho trường và cơ quan.',
     icon: School,
-    to: '/quotations',
+    to: '/account',
     accentClass: 'bg-secondary text-secondary-foreground',
   },
   {

@@ -7,7 +7,7 @@ import type { CustomizationOption, CustomerType, Product } from '@/types'
  *   backend/src/services/priceService.js  (CANONICAL comment at top)
  *
  * These functions are for display / cart snapshot only.
- * Báo giá creation and admin quote edit are always server-authoritative.
+ * retail → wholesalePrice (public bulk); wholesale/enterprise → groupPrices only.
  */
 
  /** Backend accepts options as plain strings or rich objects; normalize to objects. */
@@ -34,7 +34,13 @@ export function getEffectivePrice(product: Pick<Product, 'price' | 'isFlashSale'
   return isFlashSaleActive(product) ? (product.flashSalePrice as number) : product.price
 }
 
-function getTierPrices(product: Product, customerType: CustomerType = 'retail') {
+/** Public bulk tiers — visible to retail; stored in wholesalePrice. */
+export function getPublicBulkTierPrices(product: Product) {
+  return product.wholesalePrice ?? []
+}
+
+/** B2B-only tiers from groupPrices (approved DN wholesale / enterprise). */
+export function getB2BTierPrices(product: Product, customerType: CustomerType) {
   const groupPrices = product.groupPrices ?? {}
   if (customerType === 'enterprise' && groupPrices.enterprise?.length) {
     return groupPrices.enterprise
@@ -42,7 +48,14 @@ function getTierPrices(product: Product, customerType: CustomerType = 'retail') 
   if (customerType === 'wholesale' && groupPrices.wholesale?.length) {
     return groupPrices.wholesale
   }
-  return product.wholesalePrice ?? []
+  return []
+}
+
+export function getTierPrices(product: Product, customerType: CustomerType = 'retail') {
+  if (customerType === 'retail') {
+    return getPublicBulkTierPrices(product)
+  }
+  return getB2BTierPrices(product, customerType)
 }
 
 /** Best applicable unit price for a quantity, considering wholesale tiers and flash sale. */
@@ -75,6 +88,41 @@ export function getPackagingUnitPrice(
   const totalQty = unit.qtyPerUnit * packQty
   if (unit.price != null) return unit.price / unit.qtyPerUnit
   return getUnitPriceForQty(product, totalQty, customerType)
+}
+
+export function hasB2BPricing(product: Product, customerType: CustomerType = 'retail'): boolean {
+  if (customerType === 'retail') return false
+  return getB2BTierPrices(product, customerType).length > 0
+}
+
+/** Lowest B2B unit price for listing cards (qty 1 baseline vs tier minimum). */
+export function getB2BListingPrice(
+  product: Product,
+  customerType: CustomerType = 'retail',
+): number | null {
+  if (customerType === 'retail' || !hasB2BPricing(product, customerType)) return null
+  const base = getEffectivePrice(product)
+  const tierMin = Math.min(...getB2BTierPrices(product, customerType).map((t) => t.price))
+  return Math.min(base, tierMin)
+}
+
+export function resolveCartUnitPrice(
+  product: Product,
+  item: {
+    quantity: number
+    packagingUnit?: string | null
+    packagingQty?: number
+  },
+  customerType: CustomerType = 'retail',
+): number {
+  if (item.packagingUnit) {
+    const packQty = item.packagingQty ?? 1
+    return (
+      getPackagingUnitPrice(product, item.packagingUnit, packQty, customerType) ??
+      getUnitPriceForQty(product, item.quantity, customerType)
+    )
+  }
+  return getUnitPriceForQty(product, item.quantity, customerType)
 }
 
 export function getDiscountPercent(product: Pick<Product, 'price' | 'originalPrice' | 'isFlashSale' | 'flashSalePrice' | 'flashSaleEnd'>): number {

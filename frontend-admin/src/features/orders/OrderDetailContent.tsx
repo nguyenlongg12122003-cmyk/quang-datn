@@ -1,5 +1,4 @@
-import { Link } from 'react-router'
-import { Download, FileText, MapPin, MessageSquare, Package, Palette, RotateCcw, Truck } from 'lucide-react'
+import { Download, MapPin, MessageSquare, Package, Palette, RotateCcw, Truck } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -125,12 +124,7 @@ export function OrderDetailHeader({ order }: { order: Order }) {
           />
         ) : null}
         {order.quotationId ? (
-          <Button asChild variant="outline" size="sm" className="h-8 gap-1.5">
-            <Link to="/quotations">
-              <FileText className="size-3.5" />
-              Báo giá {order.quotationId}
-            </Link>
-          </Button>
+          <MetaChip label="Báo giá (cũ)" value={order.quotationId} />
         ) : null}
       </div>
     </div>

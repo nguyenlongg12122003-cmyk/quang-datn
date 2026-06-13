@@ -1,5 +1,5 @@
 import { Link } from 'react-router'
-import { FileText, LogOut, Package, Ticket, User as UserIcon } from 'lucide-react'
+import { LogOut, Package, Ticket, User as UserIcon } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import {
@@ -12,14 +12,9 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useAuthStore } from '@/stores/auth-store'
 import { useLogout } from '@/features/auth/api'
-import { useBusinessProfile } from '@/features/business/api'
-
 export function AccountMenu() {
   const user = useAuthStore((s) => s.user)
   const logout = useLogout()
-  const { data: business } = useBusinessProfile()
-  const showQuotations = business?.profile?.status === 'approved'
-
   if (!user) {
     return (
       <Button asChild variant="default" size="sm">
@@ -58,13 +53,6 @@ export function AccountMenu() {
             <Ticket className="size-4" /> Voucher của tôi
           </Link>
         </DropdownMenuItem>
-        {showQuotations ? (
-          <DropdownMenuItem asChild>
-            <Link to="/quotations">
-              <FileText className="size-4" /> Báo giá B2B
-            </Link>
-          </DropdownMenuItem>
-        ) : null}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={logout} variant="destructive">
           <LogOut className="size-4" /> Đăng xuất

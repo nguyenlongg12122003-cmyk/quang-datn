@@ -23,8 +23,6 @@ const AdminUsersPage = lazy(() => import('@/pages/admin/AdminUsersPage').then((m
 const AdminSupportPage = lazy(() => import('@/pages/admin/AdminSupportPage').then((m) => ({ default: m.AdminSupportPage })))
 const AdminInventoryPage = lazy(() => import('@/pages/admin/AdminInventoryPage').then((m) => ({ default: m.AdminInventoryPage })))
 const AdminBusinessPage = lazy(() => import('@/pages/admin/AdminBusinessPage').then((m) => ({ default: m.AdminBusinessPage })))
-const AdminQuotationsPage = lazy(() => import('@/pages/admin/AdminQuotationsPage').then((m) => ({ default: m.AdminQuotationsPage })))
-
 function PageFallback() {
   return (
     <div className="mx-auto max-w-7xl space-y-4 px-4 py-10">
@@ -56,7 +54,7 @@ function AppRoutes() {
             <Route path="vouchers" element={<AdminVouchersPage />} />
             <Route path="users" element={<AdminUsersPage />} />
             <Route path="business" element={<AdminBusinessPage />} />
-            <Route path="quotations" element={<AdminQuotationsPage />} />
+            <Route path="quotations" element={<Navigate to="/business" replace />} />
             <Route path="inventory" element={<AdminInventoryPage />} />
             <Route path="support" element={<AdminSupportPage />} />
           </Route>

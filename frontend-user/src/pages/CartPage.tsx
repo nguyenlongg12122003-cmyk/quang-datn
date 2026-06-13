@@ -1,7 +1,5 @@
-import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { FileText, ShoppingCart, Trash2 } from 'lucide-react'
-import { toast } from 'sonner'
+import { ShoppingCart, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
@@ -15,22 +13,19 @@ import {
   useCartStore,
 } from '@/stores/cart-store'
 import { useAuthStore } from '@/stores/auth-store'
-import { useBusinessProfile } from '@/features/business/api'
-import { useCreateQuotation } from '@/features/quotations/api'
-import { CreateQuotationDialog } from '@/features/quotations/CreateQuotationDialog'
-import { getErrorMessage } from '@/lib/api/axios'
+import { useApprovedBusinessPricing } from '@/features/business/useApprovedBusinessPricing'
+import { useCartReprice } from '@/features/cart/useCartReprice'
+import { CUSTOMER_TYPE_LABELS } from '@/lib/constants'
 
 export function CartPage() {
   const navigate = useNavigate()
-  const [quoteDialogOpen, setQuoteDialogOpen] = useState(false)
   const items = useCartStore((s) => s.items)
   const updateQuantity = useCartStore((s) => s.updateQuantity)
   const removeItem = useCartStore((s) => s.removeItem)
   const subtotal = useCartStore(selectCartSubtotal)
   const token = useAuthStore((s) => s.token)
-  const { data: business } = useBusinessProfile()
-  const createQuotation = useCreateQuotation()
-  const canQuote = business?.profile?.status === 'approved'
+  const { isApprovedBusiness, customerType, hasB2BAccess } = useApprovedBusinessPricing()
+  useCartReprice()
 
   if (items.length === 0) {
     return (
@@ -60,6 +55,22 @@ export function CartPage() {
   return (
     <PageContainer className="space-y-6">
       <h1 className="text-2xl font-bold">Giỏ hàng ({items.length})</h1>
+      {hasB2BAccess ? (
+        <p className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm">
+          <span className="font-medium text-primary">
+            {CUSTOMER_TYPE_LABELS[customerType]}
+          </span>
+          {' '}đang áp dụng — giá trong giỏ được cập nhật theo số lượng và nhóm giá doanh nghiệp.
+        </p>
+      ) : !isApprovedBusiness ? (
+        <p className="rounded-lg border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+          Mua số lượng lớn?{' '}
+          <Link to="/account" className="font-medium text-primary hover:underline">
+            Đăng ký tài khoản doanh nghiệp
+          </Link>
+          {' '}để được giá sỉ sau khi admin duyệt.
+        </p>
+      ) : null}
       <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
         <div className="space-y-3">
           {items.map((item) => (
@@ -80,42 +91,23 @@ export function CartPage() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="size-8 shrink-0 text-muted-foreground"
+                      className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
                       onClick={() => removeItem(item.lineId)}
-                      aria-label="Xóa"
                     >
                       <Trash2 className="size-4" />
                     </Button>
                   </div>
-                  {item.customization ? (
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="rounded bg-secondary px-1.5 py-0.5 font-medium text-foreground/80">
-                        {item.customization.type}
-                      </span>
-                      {item.customization.extraPrice ? (
-                        <span className="text-muted-foreground">(+{formatCurrency(item.customization.extraPrice)})</span>
-                      ) : null}
-
-                      {item.customization.inputType === 'text' && item.customization.text ? (
-                        <span className="line-clamp-1 text-muted-foreground">“{item.customization.text}”</span>
-                      ) : null}
-
-                      {item.customization.inputType === 'image' && item.customization.text ? (
-                        <img
-                          src={item.customization.text}
-                          alt="Tùy chỉnh"
-                          className="h-9 w-9 rounded border border-border object-cover"
-                        />
-                      ) : null}
-                    </div>
+                  {item.packagingUnit ? (
+                    <p className="text-xs text-muted-foreground">Quy cách: {item.packagingUnit}</p>
                   ) : null}
-                  <div className="mt-auto flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2">
                     <QuantityStepper
                       value={item.quantity}
-                      onChange={(q) => updateQuantity(item.lineId, q)}
+                      min={1}
                       max={item.stock}
+                      onChange={(qty) => updateQuantity(item.lineId, qty)}
                     />
-                    <span className="font-bold text-primary">{formatCurrency(cartItemTotal(item))}</span>
+                    <span className="font-semibold text-primary">{formatCurrency(cartItemTotal(item))}</span>
                   </div>
                 </div>
               </CardContent>
@@ -125,7 +117,6 @@ export function CartPage() {
 
         <Card className="h-fit lg:sticky lg:top-20">
           <CardContent className="space-y-4 p-5">
-            <h2 className="font-semibold">Tóm tắt đơn hàng</h2>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Tạm tính</span>
               <span className="font-medium">{formatCurrency(subtotal)}</span>
@@ -141,63 +132,9 @@ export function CartPage() {
             <Button className="w-full" size="lg" onClick={handleCheckout}>
               Tiến hành thanh toán
             </Button>
-            {canQuote ? (
-              <>
-                <Button
-                  className="w-full"
-                  variant="outline"
-                  onClick={() => {
-                    if (!token) {
-                      navigate('/login', { state: { from: '/cart' } })
-                      return
-                    }
-                    setQuoteDialogOpen(true)
-                  }}
-                  disabled={createQuotation.isPending}
-                >
-                  <FileText className="mr-2 size-4" />
-                  Tạo báo giá B2B
-                </Button>
-                <p className="text-[11px] text-muted-foreground text-center">
-                  Giá B2B/sỉ/đại lý sẽ được áp dụng tự động khi tạo báo giá (dựa trên hồ sơ doanh nghiệp đã duyệt). Giá trong giỏ là snapshot lẻ.
-                </p>
-              </>
-            ) : null}
           </CardContent>
         </Card>
       </div>
-
-      <CreateQuotationDialog
-        open={quoteDialogOpen}
-        onOpenChange={setQuoteDialogOpen}
-        subtotal={subtotal}
-        isPending={createQuotation.isPending}
-        onSubmit={(options) => {
-          createQuotation.mutate(
-            {
-              ...options,
-              // note: discount intentionally omitted (server enforces 0 at create time)
-              items: items.map((i) => ({
-                productId: i.productId,
-                quantity: i.quantity,
-                packagingUnit: i.packagingUnit ?? undefined,
-                // Note: packagingUnit is a string label. If it later becomes invalid on server (e.g. admin changed product packaging labels),
-                // the quote creation will give a clear "xóa và thêm lại" message.
-                packagingQty: i.packagingQty,
-                customization: i.customization ?? undefined,
-              })),
-            },
-            {
-              onSuccess: () => {
-                toast.success('Đã tạo báo giá')
-                setQuoteDialogOpen(false)
-                navigate('/quotations')
-              },
-              onError: (err) => toast.error(getErrorMessage(err)),
-            },
-          )
-        }}
-      />
     </PageContainer>
   )
 }

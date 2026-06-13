@@ -19,13 +19,16 @@ async function getCustomerType(request, userId) {
   return row.customerType || 'retail';
 }
 
-async function buildValidatedItems(request, userId, rawItems) {
-  const customerType = await getCustomerType(request, userId);
+async function buildValidatedItems(transaction, userId, rawItems, { pricingMode = 'catalog' } = {}) {
+  const typeRequest = new sql.Request(transaction);
+  const customerType = await getCustomerType(typeRequest, userId);
   const builtItems = [];
   const productsById = {};
+  const useSnapshot = pricingMode === 'snapshot';
 
   for (const rawItem of rawItems) {
-    const productResult = await request
+    const itemRequest = new sql.Request(transaction);
+    const productResult = await itemRequest
       .input('productId', sql.NVarChar, rawItem.productId)
       .query('SELECT TOP 1 * FROM dbo.products WHERE id = @productId');
 
@@ -37,34 +40,57 @@ async function buildValidatedItems(request, userId, rawItems) {
       throw new Error(`Sản phẩm không còn bán: ${product.name}`);
     }
 
-    const packaging = resolvePackagingSelection(
-      product,
-      rawItem.packagingUnit,
-      rawItem.packagingQty || rawItem.quantity,
-      customerType,
-    );
+    let unitPrice;
+    let quantity;
+    let packagingUnit;
+    let packagingQty;
+    let normalized;
+    let customizationStatus;
 
-    const { extraPrice, normalized } = calculateCustomizationExtra(product, rawItem.customization);
-    const unitPrice = packaging.unitPrice + extraPrice;
-    const quantity = packaging.quantity;
+    if (useSnapshot) {
+      unitPrice = Number(rawItem.price);
+      quantity = Number(rawItem.quantity);
+      packagingUnit = rawItem.packagingUnit ?? null;
+      packagingQty = Number(rawItem.packagingQty || 1);
+      normalized = rawItem.customization ?? null;
+      customizationStatus = normalized ? 'pending_review' : null;
+    } else {
+      const packaging = resolvePackagingSelection(
+        product,
+        rawItem.packagingUnit,
+        rawItem.packagingQty || rawItem.quantity,
+        customerType,
+      );
+
+      const { extraPrice, normalized: normalizedCustomization } = calculateCustomizationExtra(
+        product,
+        rawItem.customization,
+      );
+      unitPrice = packaging.unitPrice + extraPrice;
+      quantity = packaging.quantity;
+      packagingUnit = packaging.packagingUnit;
+      packagingQty = packaging.packagingQty;
+      normalized = normalizedCustomization;
+      customizationStatus = normalized ? 'pending_review' : null;
+    }
 
     if (product.stock < quantity) {
       throw new Error(`Không đủ tồn kho cho sản phẩm: ${product.name}`);
     }
 
     const images = product.images || [];
-    const productImage = images[0]?.url || rawItem.productImage || '';
+    const productImage = rawItem.productImage || images[0]?.url || '';
 
     const built = {
       productId: product.id,
-      productName: product.name,
+      productName: rawItem.productName || product.name,
       productImage,
       price: unitPrice,
       quantity,
-      packagingUnit: packaging.packagingUnit,
-      packagingQty: packaging.packagingQty,
+      packagingUnit,
+      packagingQty,
       customization: normalized,
-      customizationStatus: normalized ? 'pending_review' : null,
+      customizationStatus,
       product,
     };
 
@@ -88,6 +114,7 @@ async function createOrderTransaction(pool, {
   quotationId = null,
   invoiceInfo = null,
   createdBy,
+  pricingMode = 'catalog',
 }) {
   const normalizedPaymentMethod = paymentMethod || 'cod';
   if (!['cod', 'vnpay', 'payos'].includes(normalizedPaymentMethod)) {
@@ -98,8 +125,7 @@ async function createOrderTransaction(pool, {
   await transaction.begin();
 
   try {
-    const request = new sql.Request(transaction);
-    const { builtItems, productsById } = await buildValidatedItems(request, userId, items);
+    const { builtItems, productsById } = await buildValidatedItems(transaction, userId, items, { pricingMode });
 
     const paymentTermDays = null;
     const paymentDueDate = null;
@@ -113,7 +139,8 @@ async function createOrderTransaction(pool, {
       productsById,
     );
 
-    await request
+    const orderRequest = new sql.Request(transaction);
+    await orderRequest
       .input('id', sql.NVarChar, orderId)
       .input('userId', sql.NVarChar, userId)
       .input('subtotal', sql.Decimal(18, 2), computedSubtotal)
@@ -147,7 +174,8 @@ async function createOrderTransaction(pool, {
       `);
 
     for (const item of builtItems) {
-      await request
+      const itemRequest = new sql.Request(transaction);
+      await itemRequest
         .input('orderId', sql.NVarChar, orderId)
         .input('productId', sql.NVarChar, item.productId)
         .input('productName', sql.NVarChar, item.productName)
@@ -170,11 +198,12 @@ async function createOrderTransaction(pool, {
         `);
     }
 
-    await deductStockForOrder(request, builtItems, { orderId, createdBy: createdBy || userId });
+    await deductStockForOrder(transaction, builtItems, { orderId, createdBy: createdBy || userId });
 
     const initialStatus = 'pending';
     const initialNote = null;
-    await request
+    const timelineRequest = new sql.Request(transaction);
+    await timelineRequest
       .input('orderId', sql.NVarChar, orderId)
       .input('timelineStatus', sql.NVarChar, initialStatus)
       .input('timelineNote', sql.NVarChar, initialNote)
@@ -184,7 +213,8 @@ async function createOrderTransaction(pool, {
       `);
 
     if (quotationId) {
-      await request
+      const quotationRequest = new sql.Request(transaction);
+      await quotationRequest
         .input('quotationId', sql.NVarChar, quotationId)
         .input('convertedOrderId', sql.NVarChar, orderId)
         .query(`
@@ -195,7 +225,8 @@ async function createOrderTransaction(pool, {
     }
 
     if (voucherCode && normalizedPaymentMethod === 'cod') {
-      await request
+      const voucherRequest = new sql.Request(transaction);
+      await voucherRequest
         .input('code', sql.NVarChar, String(voucherCode).toUpperCase())
         .query('UPDATE dbo.vouchers SET usedCount = usedCount + 1 WHERE code = @code');
     }

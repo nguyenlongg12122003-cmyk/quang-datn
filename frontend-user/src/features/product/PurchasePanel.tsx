@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router'
 import { Heart, ShoppingCart } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
@@ -18,11 +19,15 @@ import { QuantityStepper } from '@/components/common/QuantityStepper'
 import { ImageUploader } from '@/components/common/ImageUploader'
 import { formatCurrency, formatNumber } from '@/lib/format'
 import {
+  getB2BTierPrices,
   getPackagingUnitPrice,
+  getPublicBulkTierPrices,
   getUnitPriceForQty,
   isFlashSaleActive,
   normalizeCustomizationOptions,
 } from '@/lib/product'
+import { useApprovedBusinessPricing } from '@/features/business/useApprovedBusinessPricing'
+import { TierPriceTable } from '@/features/product/TierPriceTable'
 import { useCartStore } from '@/stores/cart-store'
 import { useAuthStore } from '@/stores/auth-store'
 import { CUSTOMER_TYPE_LABELS } from '@/lib/constants'
@@ -40,7 +45,8 @@ interface PurchasePanelProps {
 export function PurchasePanel({ product }: PurchasePanelProps) {
   const addItem = useCartStore((s) => s.addItem)
   const token = useAuthStore((s) => s.token)
-  const customerType = useAuthStore((s) => s.user?.customerType ?? 'retail')
+  const { hasB2BAccess, customerType: b2bCustomerType, profile } = useApprovedBusinessPricing()
+  const pricingCustomerType = hasB2BAccess ? b2bCustomerType : 'retail'
   const wishlistIds = useWishlistIds()
   const addWishlist = useAddToWishlist()
   const removeWishlist = useRemoveFromWishlist()
@@ -62,9 +68,9 @@ export function PurchasePanel({ product }: PurchasePanelProps) {
     ? (product.packagingUnits?.find((u) => u.label === packagingUnit)?.qtyPerUnit ?? 1) * packagingQty
     : quantity
   const unitPrice = packagingUnit
-    ? (getPackagingUnitPrice(product, packagingUnit, packagingQty, customerType) ??
-      getUnitPriceForQty(product, effectiveQty, customerType))
-    : getUnitPriceForQty(product, quantity, customerType)
+    ? (getPackagingUnitPrice(product, packagingUnit, packagingQty, pricingCustomerType) ??
+      getUnitPriceForQty(product, effectiveQty, pricingCustomerType))
+    : getUnitPriceForQty(product, quantity, pricingCustomerType)
   const inWishlist = wishlistIds.has(product.id)
   const outOfStock = product.stock <= 0
 
@@ -115,6 +121,43 @@ export function PurchasePanel({ product }: PurchasePanelProps) {
     else addWishlist.mutate(product.id, { onSuccess: () => toast.success('Đã thêm vào yêu thích') })
   }
 
+  const publicTiers = useMemo(() => getPublicBulkTierPrices(product), [product])
+  const b2bTiers = useMemo(
+    () => (hasB2BAccess ? getB2BTierPrices(product, b2bCustomerType) : []),
+    [product, hasB2BAccess, b2bCustomerType],
+  )
+
+  const businessCta = (() => {
+    if (hasB2BAccess) return null
+    if (profile?.status === 'pending') {
+      return (
+        <p className="text-xs text-muted-foreground">
+          Hồ sơ doanh nghiệp đang chờ admin duyệt. Sau khi duyệt, bạn sẽ thấy bảng{' '}
+          <span className="font-medium text-primary">Giá sỉ / Giá đại lý</span> riêng.
+        </p>
+      )
+    }
+    if (profile?.status === 'rejected') {
+      return (
+        <p className="text-xs text-muted-foreground">
+          <Link to="/account" className="font-medium text-primary hover:underline">
+            Gửi lại hồ sơ doanh nghiệp
+          </Link>
+          {' '}để được xem giá sỉ / đại lý sau khi duyệt.
+        </p>
+      )
+    }
+    return (
+      <p className="text-xs text-muted-foreground">
+        Mua số lượng lớn cho công ty?{' '}
+        <Link to="/account" className="font-medium text-primary hover:underline">
+          Đăng ký tài khoản doanh nghiệp
+        </Link>
+        {' '}để được giá sỉ / đại lý sau khi admin duyệt.
+      </p>
+    )
+  })()
+
   const extraPrice = selectedOption?.extraPrice ?? 0
   const lineTotal = (unitPrice + extraPrice) * (packagingUnit ? effectiveQty : quantity)
   const onSale =
@@ -140,26 +183,33 @@ export function PurchasePanel({ product }: PurchasePanelProps) {
             ⚡ Flash Sale
           </Badge>
         ) : null}
-        {customerType !== 'retail' ? (
-          <div className="mt-2 text-xs text-primary font-medium">
-            Giá {CUSTOMER_TYPE_LABELS[customerType]} đang áp dụng (theo hồ sơ doanh nghiệp B2B đã duyệt)
+        {hasB2BAccess ? (
+          <div className="mt-2 text-xs font-medium text-primary">
+            Giá {CUSTOMER_TYPE_LABELS[b2bCustomerType]} đang áp dụng (hồ sơ doanh nghiệp đã duyệt)
           </div>
         ) : null}
       </div>
 
-      {product.wholesalePrice && product.wholesalePrice.length > 0 ? (
-        <div className="space-y-1 rounded-lg border border-border p-3 text-sm">
-          <p className="font-medium">Giá sỉ</p>
-          <ul className="grid gap-1 text-muted-foreground">
-            {product.wholesalePrice.map((t) => (
-              <li key={t.minQty} className="flex justify-between">
-                <span>Từ {t.minQty} sản phẩm</span>
-                <span className="font-medium text-foreground">{formatCurrency(t.price)}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
+      {hasB2BAccess ? (
+        <TierPriceTable
+          title={`Bảng giá ${CUSTOMER_TYPE_LABELS[b2bCustomerType]}`}
+          tiers={b2bTiers}
+          effectiveQty={effectiveQty}
+        />
+      ) : (
+        <>
+          <TierPriceTable
+            title="Giá ưu đãi khi mua số lượng lớn"
+            tiers={publicTiers}
+            effectiveQty={effectiveQty}
+          />
+          {businessCta ? (
+            <div className="rounded-lg border border-dashed border-primary/30 bg-primary/5 px-3 py-2.5">
+              {businessCta}
+            </div>
+          ) : null}
+        </>
+      )}
 
       {product.colors && product.colors.length > 0 ? (
         <div className="space-y-2">

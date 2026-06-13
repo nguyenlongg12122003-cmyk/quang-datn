@@ -1,0 +1,286 @@
+---
+pid: 13788
+cwd: "D:\Projects\quang-datn"
+command: "cd D:\\Projects\\quang-datn\\backend && npm run dev"
+started_at: 2026-06-13T14:51:41.695Z
+running_for_ms: 9620007  
+---
+
+> backend@1.0.0 dev
+> nodemon src/server.js
+
+[nodemon] 3.1.14
+[nodemon] to restart at any time, enter `rs`
+[nodemon] watching path(s): *.*
+[nodemon] watching extensions: js,mjs,cjs,json
+[nodemon] starting `node src/server.js`
+[db] Using existing database "VanPhongPham_DB"
+[initDb] Checking for pending migrations...
+[server] Port 5000 is already in use. Stop the other process or set PORT to a different value in .env.
+[Migration] Applied migrations: 5
+[Migration] Found 5 migration files
+[Migration] ⊘ Skipping (already applied): 001_add_voucher_improvements.sql
+[Migration] ⊘ Skipping (already applied): 002_voucher_auto_distribution.sql
+[Migration] ⊘ Skipping (already applied): 003_add_order_shipping_fields.sql
+[Migration] ⊘ Skipping (already applied): 004_level2_b2b_inventory.sql
+[Migration] ⊘ Skipping (already applied): 005_add_business_documents_history.sql
+[Migration] ✓ All migrations up to date
+[nodemon] app crashed - waiting for file changes before starting...
+[nodemon] restarting due to changes...
+[nodemon] starting `node src/server.js`
+[db] Using existing database "VanPhongPham_DB"
+[initDb] Checking for pending migrations...
+[Migration] Applied migrations: 5
+[Migration] Found 5 migration files
+[Migration] ⊘ Skipping (already applied): 001_add_voucher_improvements.sql
+[Migration] ⊘ Skipping (already applied): 002_voucher_auto_distribution.sql
+[Migration] ⊘ Skipping (already applied): 003_add_order_shipping_fields.sql
+[Migration] ⊘ Skipping (already applied): 004_level2_b2b_inventory.sql
+[Migration] ⊘ Skipping (already applied): 005_add_business_documents_history.sql
+[Migration] ✓ All migrations up to date
+[server] Backend listening on port 5000
+[server] Socket.IO attached
+[socket] Connected: phanquang@user.com (customer) — socket OZVPr1L5OTfihsWwAAAB
+[socket] Connected: quang@admin.com (admin) — socket yfC2qFLJJCHH3NwlAAAE
+[nodemon] restarting due to changes...
+[nodemon] starting `node src/server.js`
+[db] Using existing database "VanPhongPham_DB"
+[initDb] Checking for pending migrations...
+[server] Port 5000 is already in use. Stop the other process or set PORT to a different value in .env.
+[Migration] Applied migrations: 5
+[Migration] Found 5 migration files
+[Migration] ⊘ Skipping (already applied): 001_add_voucher_improvements.sql
+[Migration] ⊘ Skipping (already applied): 002_voucher_auto_distribution.sql
+[Migration] ⊘ Skipping (already applied): 003_add_order_shipping_fields.sql
+[Migration] ⊘ Skipping (already applied): 004_level2_b2b_inventory.sql
+[Migration] ⊘ Skipping (already applied): 005_add_business_documents_history.sql
+[Migration] ✓ All migrations up to date
+[nodemon] app crashed - waiting for file changes before starting...
+[nodemon] restarting due to changes...
+[nodemon] starting `node src/server.js`
+[db] Using existing database "VanPhongPham_DB"
+[initDb] Checking for pending migrations...
+[Migration] Applied migrations: 5
+[Migration] Found 5 migration files
+[Migration] ⊘ Skipping (already applied): 001_add_voucher_improvements.sql
+[Migration] ⊘ Skipping (already applied): 002_voucher_auto_distribution.sql
+[Migration] ⊘ Skipping (already applied): 003_add_order_shipping_fields.sql
+[Migration] ⊘ Skipping (already applied): 004_level2_b2b_inventory.sql
+[Migration] ⊘ Skipping (already applied): 005_add_business_documents_history.sql
+[Migration] ✓ All migrations up to date
+[server] Backend listening on port 5000
+[server] Socket.IO attached
+[socket] Connected: quang@admin.com (admin) — socket 1FQIe8p1ZSwPRDwWAAAB
+[socket] Connected: phanquang@user.com (customer) — socket 9AFTgz14rC5HhUgIAAAE
+[email] SMTP not configured — would send:
+  To: pendingbiz@company.com
+  Subject: [Quang VPP] Hồ sơ doanh nghiệp đã được duyệt
+  Body:
+Xin chào Lê Văn Dũng,
+
+Hồ sơ doanh nghiệp "Công ty CP Demo Logistics" đã được admin phê duyệt.
+Nhóm giá áp dụng: Giá sỉ.
+
+Bạn có thể đăng nhập và mua hàng với giá B2B tại: http://localhost:5173
+
+Trân trọng,
+Quang VPP
+[nodemon] restarting due to changes...
+[nodemon] restarting due to changes...
+[nodemon] starting `node src/server.js`
+[db] Using existing database "VanPhongPham_DB"
+[initDb] Checking for pending migrations...
+[Migration] Applied migrations: 5
+[Migration] Found 5 migration files
+[Migration] ⊘ Skipping (already applied): 001_add_voucher_improvements.sql
+[Migration] ⊘ Skipping (already applied): 002_voucher_auto_distribution.sql
+[Migration] ⊘ Skipping (already applied): 003_add_order_shipping_fields.sql
+[Migration] ⊘ Skipping (already applied): 004_level2_b2b_inventory.sql
+[Migration] ⊘ Skipping (already applied): 005_add_business_documents_history.sql
+[Migration] ✓ All migrations up to date
+[server] Backend listening on port 5000
+[server] Socket.IO attached
+[socket] Connected: phanquang@user.com (customer) — socket v3ZQWgfIY8KU9wWtAAAB
+[socket] Connected: quang@admin.com (admin) — socket CCEC34rCB5HcSxL-AAAE
+[email] SMTP not configured — would send:
+  To: pendingbiz@company.com
+  Subject: [Quang VPP] Hồ sơ doanh nghiệp đã được duyệt
+  Body:
+Xin chào Lê Văn Dũng,
+
+Hồ sơ doanh nghiệp "Công ty CP Demo Logistics" đã được admin phê duyệt.
+Nhóm giá áp dụng: Giá sỉ.
+
+Bạn có thể đăng nhập và mua hàng với giá B2B tại: http://localhost:5173
+
+Trân trọng,
+Quang VPP
+[nodemon] restarting due to changes...
+[nodemon] starting `node src/server.js`
+[db] Using existing database "VanPhongPham_DB"
+[server] Port 5000 is already in use. Stop the other process or set PORT to a different value in .env.
+[initDb] Checking for pending migrations...
+[Migration] Applied migrations: 5
+[Migration] Found 5 migration files
+[Migration] ⊘ Skipping (already applied): 001_add_voucher_improvements.sql
+[Migration] ⊘ Skipping (already applied): 002_voucher_auto_distribution.sql
+[Migration] ⊘ Skipping (already applied): 003_add_order_shipping_fields.sql
+[Migration] ⊘ Skipping (already applied): 004_level2_b2b_inventory.sql
+[Migration] ⊘ Skipping (already applied): 005_add_business_documents_history.sql
+[Migration] ✓ All migrations up to date
+[nodemon] app crashed - waiting for file changes before starting...
+[nodemon] restarting due to changes...
+[nodemon] starting `node src/server.js`
+[nodemon] restarting due to changes...
+[nodemon] starting `node src/server.js`
+[db] Using existing database "VanPhongPham_DB"
+[initDb] Checking for pending migrations...
+[Migration] Applied migrations: 5
+[Migration] Found 5 migration files
+[Migration] ⊘ Skipping (already applied): 001_add_voucher_improvements.sql
+[Migration] ⊘ Skipping (already applied): 002_voucher_auto_distribution.sql
+[Migration] ⊘ Skipping (already applied): 003_add_order_shipping_fields.sql
+[Migration] ⊘ Skipping (already applied): 004_level2_b2b_inventory.sql
+[Migration] ⊘ Skipping (already applied): 005_add_business_documents_history.sql
+[Migration] ✓ All migrations up to date
+[server] Backend listening on port 5000
+[server] Socket.IO attached
+[socket] Connected: phanquang@user.com (customer) — socket ZAoPaZlY7lyYA_IjAAAC
+[socket] Connected: quang@admin.com (admin) — socket lhd1dA_tLzixYdKzAAAE
+[email] SMTP not configured — would send:
+  To: pendingbiz@company.com
+  Subject: [Quang VPP] Hồ sơ doanh nghiệp đã được duyệt
+  Body:
+Xin chào Lê Văn Dũng,
+
+Hồ sơ doanh nghiệp "Công ty CP Demo Logistics" đã được admin phê duyệt.
+Nhóm giá áp dụng: Giá sỉ.
+
+Bạn có thể đăng nhập và mua hàng với giá B2B tại: http://localhost:5173
+
+Trân trọng,
+Quang VPP
+[error] RequestError: Incorrect syntax near the keyword 'with'. If this statement is a common table expression, an xmlnamespaces clause or a change tracking context clause, the previous statement must be terminated with a semicolon.
+    at handleError (D:\Projects\quang-datn\backend\node_modules\mssql\lib\tedious\request.js:384:15)
+    at Connection.emit (node:events:508:28)
+    at Connection.emit (D:\Projects\quang-datn\backend\node_modules\tedious\lib\connection.js:970:18)
+    at RequestTokenHandler.onErrorMessage (D:\Projects\quang-datn\backend\node_modules\tedious\lib\token\handler.js:284:21)
+    at Readable.<anonymous> (D:\Projects\quang-datn\backend\node_modules\tedious\lib\token\token-stream-parser.js:19:33)
+    at Readable.emit (node:events:508:28)
+    at addChunk (node:internal/streams/readable:559:12)
+    at readableAddChunkPushObjectMode (node:internal/streams/readable:536:3)
+    at Readable.push (node:internal/streams/readable:391:5)
+    at nextAsync (node:internal/streams/from:194:22) {
+  code: 'EREQUEST',
+  originalError: Error: Incorrect syntax near the keyword 'with'. If this statement is a common table expression, an xmlnamespaces clause or a change tracking context clause, the previous statement must be terminated with a semicolon.
+      at handleError (D:\Projects\quang-datn\backend\node_modules\mssql\lib\tedious\request.js:382:19)
+      at Connection.emit (node:events:508:28)
+      at Connection.emit (D:\Projects\quang-datn\backend\node_modules\tedious\lib\connection.js:970:18)
+      at RequestTokenHandler.onErrorMessage (D:\Projects\quang-datn\backend\node_modules\tedious\lib\token\handler.js:284:21)
+      at Readable.<anonymous> (D:\Projects\quang-datn\backend\node_modules\tedious\lib\token\token-stream-parser.js:19:33)
+      at Readable.emit (node:events:508:28)
+      at addChunk (node:internal/streams/readable:559:12)
+      at readableAddChunkPushObjectMode (node:internal/streams/readable:536:3)
+      at Readable.push (node:internal/streams/readable:391:5)
+      at nextAsync (node:internal/streams/from:194:22) {
+    info: ErrorMessageToken {
+      name: 'ERROR',
+      handlerName: 'onErrorMessage',
+      number: 319,
+      state: 1,
+      class: 15,
+      message: "Incorrect syntax near the keyword 'with'. If this statement is a common table expression, an xmlnamespaces clause or a change tracking context clause, the previous statement must be terminated with a semicolon.",
+      serverName: 'thaitruong',
+      procName: '',
+      lineNumber: 1
+    }
+  },
+  number: 319,
+  lineNumber: 1,
+  state: 1,
+  class: 15,
+  serverName: 'thaitruong',
+  procName: '',
+  precedingErrors: []
+}
+[nodemon] restarting due to changes...
+[nodemon] starting `node src/server.js`
+[db] Using existing database "VanPhongPham_DB"
+[server] Port 5000 is already in use. Stop the other process or set PORT to a different value in .env.
+[initDb] Checking for pending migrations...
+[Migration] Applied migrations: 5
+[Migration] Found 5 migration files
+[Migration] ⊘ Skipping (already applied): 001_add_voucher_improvements.sql
+[Migration] ⊘ Skipping (already applied): 002_voucher_auto_distribution.sql
+[Migration] ⊘ Skipping (already applied): 003_add_order_shipping_fields.sql
+[Migration] ⊘ Skipping (already applied): 004_level2_b2b_inventory.sql
+[Migration] ⊘ Skipping (already applied): 005_add_business_documents_history.sql
+[Migration] ✓ All migrations up to date
+[nodemon] app crashed - waiting for file changes before starting...
+[nodemon] restarting due to changes...
+[nodemon] starting `node src/server.js`
+[nodemon] restarting due to changes...
+[nodemon] restarting due to changes...
+[nodemon] starting `node src/server.js`
+[db] Using existing database "VanPhongPham_DB"
+[initDb] Checking for pending migrations...
+[Migration] Applied migrations: 5
+[Migration] Found 5 migration files
+[Migration] ⊘ Skipping (already applied): 001_add_voucher_improvements.sql
+[Migration] ⊘ Skipping (already applied): 002_voucher_auto_distribution.sql
+[Migration] ⊘ Skipping (already applied): 003_add_order_shipping_fields.sql
+[Migration] ⊘ Skipping (already applied): 004_level2_b2b_inventory.sql
+[Migration] ⊘ Skipping (already applied): 005_add_business_documents_history.sql
+[Migration] ✓ All migrations up to date
+[server] Backend listening on port 5000
+[server] Socket.IO attached
+[socket] Connected: phanquang@user.com (customer) — socket lv6waPHW2HbubgOwAAAB
+[socket] Connected: quang@admin.com (admin) — socket QGBwzIPHeUiUSG_QAAAE
+[nodemon] app crashed - waiting for file changes before starting...
+[nodemon] restarting due to changes...
+[nodemon] starting `node src/server.js`
+[nodemon] restarting due to changes...
+[nodemon] starting `node src/server.js`
+[db] Using existing database "VanPhongPham_DB"
+[initDb] Checking for pending migrations...
+[Migration] Applied migrations: 5
+[Migration] Found 5 migration files
+[Migration] ⊘ Skipping (already applied): 001_add_voucher_improvements.sql
+[Migration] ⊘ Skipping (already applied): 002_voucher_auto_distribution.sql
+[Migration] ⊘ Skipping (already applied): 003_add_order_shipping_fields.sql
+[Migration] ⊘ Skipping (already applied): 004_level2_b2b_inventory.sql
+[Migration] ⊘ Skipping (already applied): 005_add_business_documents_history.sql
+[Migration] ✓ All migrations up to date
+[server] Backend listening on port 5000
+[server] Socket.IO attached
+[socket] Connected: phanquang@user.com (customer) — socket 3nQtNigEneejonXfAAAB
+[socket] Connected: quang@admin.com (admin) — socket TsZk-oD5ITZYNzv9AAAE
+[nodemon] app crashed - waiting for file changes before starting...
+[nodemon] restarting due to changes...
+[nodemon] starting `node src/server.js`
+[db] Using existing database "VanPhongPham_DB"
+[initDb] Checking for pending migrations...
+[server] Port 5000 is already in use. Stop the other process or set PORT to a different value in .env.
+[Migration] Applied migrations: 5
+[Migration] Found 5 migration files
+[Migration] ⊘ Skipping (already applied): 001_add_voucher_improvements.sql
+[Migration] ⊘ Skipping (already applied): 002_voucher_auto_distribution.sql
+[Migration] ⊘ Skipping (already applied): 003_add_order_shipping_fields.sql
+[Migration] ⊘ Skipping (already applied): 004_level2_b2b_inventory.sql
+[Migration] ⊘ Skipping (already applied): 005_add_business_documents_history.sql
+[Migration] ✓ All migrations up to date
+[nodemon] app crashed - waiting for file changes before starting...
+[nodemon] restarting due to changes...
+[nodemon] starting `node src/server.js`
+[db] Using existing database "VanPhongPham_DB"
+[initDb] Checking for pending migrations...
+[Migration] Applied migrations: 5
+[Migration] Found 5 migration files
+[Migration] ⊘ Skipping (already applied): 001_add_voucher_improvements.sql
+[Migration] ⊘ Skipping (already applied): 002_voucher_auto_distribution.sql
+[Migration] ⊘ Skipping (already applied): 003_add_order_shipping_fields.sql
+[Migration] ⊘ Skipping (already applied): 004_level2_b2b_inventory.sql
+[Migration] ⊘ Skipping (already applied): 005_add_business_documents_history.sql
+[Migration] ✓ All migrations up to date
+[nodemon] app crashed - waiting for file changes before starting...
+[server] Port 5000 is already in use. Stop the other process or set PORT to a different value in .env.

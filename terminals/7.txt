@@ -1,0 +1,38 @@
+---
+pid: 10912
+cwd: "D:\Projects\quang-datn"
+command: "cd D:\\Projects\\quang-datn\\backend && node src/server.js"
+started_at: 2026-06-13T15:20:47.408Z
+running_for_ms: 7885012  
+---
+[db] Using existing database "VanPhongPham_DB"
+[initDb] Checking for pending migrations...
+[Migration] Applied migrations: 5
+[Migration] Found 5 migration files
+[Migration] ⊘ Skipping (already applied): 001_add_voucher_improvements.sql
+[Migration] ⊘ Skipping (already applied): 002_voucher_auto_distribution.sql
+[Migration] ⊘ Skipping (already applied): 003_add_order_shipping_fields.sql
+[Migration] ⊘ Skipping (already applied): 004_level2_b2b_inventory.sql
+[Migration] ⊘ Skipping (already applied): 005_add_business_documents_history.sql
+[Migration] ✓ All migrations up to date
+[server] Backend listening on port 5000
+[server] Socket.IO attached
+[socket] Connected: quang@user.com (customer) — socket 9CDOECbSbvg6c2Q_AAAC
+[socket] Connected: quang@admin.com (admin) — socket YDyV-LJSlB471UbMAAAE
+[socket] Connected: phanquang@user.com (customer) — socket YjGQMg31SID34AbaAAAH
+[socket] Disconnected: quang@user.com
+[socket] Connected: quang@user.com (customer) — socket LgLTeNCiROue86DAAAAK
+[socket] Disconnected: phanquang@user.com
+[socket] Disconnected: quang@admin.com
+[socket] Disconnected: quang@user.com
+[socket] Connected: phanquang@user.com (customer) — socket frKIb1CSoqI5fhItAAAP
+[socket] Connected: quang@user.com (customer) — socket Wb4izIQqsF38srRJAAAR
+[socket] Connected: quang@admin.com (admin) — socket fiUpYenb97C43sHwAAAT
+[socket] Disconnected: phanquang@user.com
+[socket] Disconnected: quang@user.com
+[socket] Connected: quang@user.com (customer) — socket gZBhNbQoL7tJMljjAAAW
+[socket] Disconnected: quang@admin.com
+[socket] Connected: quang@admin.com (admin) — socket zAs817e2m-NKAsHIAAAa
+[socket] Connected: phanquang@user.com (customer) — socket z6IGeS2kvI8pMJnYAAAc
+[socket] Disconnected: phanquang@user.com
+[socket] Connected: phanquang@user.com (customer) — socket N2m7_JASJW_ufI4mAAAf

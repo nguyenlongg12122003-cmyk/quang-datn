@@ -7,10 +7,19 @@ import { Card, CardContent } from '@/components/ui/card'
 import { PriceTag } from '@/components/common/PriceTag'
 import { RatingStars } from '@/components/common/RatingStars'
 import { formatNumber } from '@/lib/format'
-import { getDiscountPercent, getEffectivePrice, isFlashSaleActive } from '@/lib/product'
+import {
+  getB2BListingPrice,
+  getDiscountPercent,
+  getEffectivePrice,
+  getUnitPriceForQty,
+  hasB2BPricing,
+  isFlashSaleActive,
+} from '@/lib/product'
+import { CUSTOMER_TYPE_LABELS } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import { useCartStore } from '@/stores/cart-store'
 import { useAuthStore } from '@/stores/auth-store'
+import { useApprovedBusinessPricing } from '@/features/business/useApprovedBusinessPricing'
 import {
   useAddToWishlist,
   useRemoveFromWishlist,
@@ -25,13 +34,21 @@ interface ProductCardProps {
 
 export function ProductCard({ product, className }: ProductCardProps) {
   const addItem = useCartStore((s) => s.addItem)
-  const token = useAuthStore((s) => s.token)
+  const { customerType, hasB2BAccess } = useApprovedBusinessPricing()
   const wishlistIds = useWishlistIds()
   const addWishlist = useAddToWishlist()
   const removeWishlist = useRemoveFromWishlist()
 
-  const effectivePrice = getEffectivePrice(product)
-  const discount = getDiscountPercent(product)
+  const retailPrice = getEffectivePrice(product)
+  const b2bListingPrice = hasB2BAccess ? getB2BListingPrice(product, customerType) : null
+  const displayPrice = b2bListingPrice ?? retailPrice
+  const showB2BBadge = hasB2BAccess && hasB2BPricing(product, customerType)
+  const discount = getDiscountPercent({
+    ...product,
+    price: displayPrice,
+    flashSalePrice: showB2BBadge ? null : product.flashSalePrice,
+    isFlashSale: showB2BBadge ? false : product.isFlashSale,
+  })
   const flashSale = isFlashSaleActive(product)
   const inWishlist = wishlistIds.has(product.id)
   const outOfStock = product.stock <= 0
@@ -40,18 +57,21 @@ export function ProductCard({ product, className }: ProductCardProps) {
   const handleAddToCart = () => {
     if (outOfStock) return
     if (product.isCustomizable) {
-      // Customizable products must be configured on the detail page.
       window.location.assign(`/products/${product.slug}`)
       return
     }
+    const unitPrice = hasB2BAccess
+      ? getUnitPriceForQty(product, 1, customerType)
+      : retailPrice
     addItem(
-      { id: product.id, slug: product.slug, name: product.name, stock: product.stock, image, unitPrice: effectivePrice },
+      { id: product.id, slug: product.slug, name: product.name, stock: product.stock, image, unitPrice },
       1,
     )
     toast.success('Đã thêm vào giỏ hàng')
   }
 
   const handleToggleWishlist = () => {
+    const token = useAuthStore.getState().token
     if (!token) {
       toast.info('Vui lòng đăng nhập để dùng danh sách yêu thích')
       return
@@ -96,6 +116,11 @@ export function ProductCard({ product, className }: ProductCardProps) {
                 <Sparkles className="size-3" /> Flash Sale
               </Badge>
             ) : null}
+            {showB2BBadge ? (
+              <Badge className="bg-primary text-primary-foreground hover:bg-primary/90">
+                {CUSTOMER_TYPE_LABELS[customerType]}
+              </Badge>
+            ) : null}
             {discount > 0 ? (
               <Badge className="bg-commerce text-commerce-foreground hover:bg-commerce/90">
                 -{discount}%
@@ -115,7 +140,10 @@ export function ProductCard({ product, className }: ProductCardProps) {
           <RatingStars rating={product.rating ?? 0} />
           <span>Đã bán {formatNumber(product.sold ?? 0)}</span>
         </div>
-        <PriceTag price={effectivePrice} originalPrice={product.originalPrice} />
+        <PriceTag
+          price={displayPrice}
+          originalPrice={showB2BBadge ? retailPrice : product.originalPrice}
+        />
         <Button
           size="sm"
           className="w-full gap-2"

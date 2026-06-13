@@ -89,6 +89,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
   const [form, setForm] = useState<ProductFormState>(() => buildProductFormState(product))
   const [errors, setErrors] = useState<ProductFormFieldErrors>({})
   const [slugTouched, setSlugTouched] = useState(Boolean(product?.slug))
+  const [tierTab, setTierTab] = useState<'wholesale' | 'enterprise'>('wholesale')
 
   const set = (patch: Partial<ProductFormState>) => {
     setForm((prev) => ({ ...prev, ...patch }))
@@ -455,81 +456,131 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
 
           <CollapsibleSection
             id="section-wholesale"
-            title="Giá sỉ theo số lượng"
-            description="Bậc giá khi khách mua số lượng lớn"
-            defaultOpen={form.wholesaleTiers.length > 0}
+            title="Giá B2B theo số lượng"
+            description="Bậc giá cho khách doanh nghiệp đã được duyệt"
+            defaultOpen={form.wholesaleTiers.length > 0 || form.enterpriseTiers.length > 0}
           >
-            <DynamicTable
-              headers={['Số lượng tối thiểu', 'Giá / sản phẩm', '']}
-              columns="minmax(0,140px) 1fr 40px"
-              emptyText="Chưa có bậc giá sỉ."
-              isEmpty={form.wholesaleTiers.length === 0}
-            >
-              {form.wholesaleTiers.map((tier, index) => (
-                <DynamicTableRow key={index} columns="minmax(0,140px) 1fr 40px">
-                  <Input
-                    type="number"
-                    min={1}
-                    value={tier.minQty}
-                    onChange={(e) => updateWholesaleTier(index, { minQty: e.target.value })}
-                    placeholder="50"
-                  />
-                  <CurrencyInput
-                    value={tier.price}
-                    onChange={(price) => updateWholesaleTier(index, { price })}
-                    placeholder="45000"
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    className="text-destructive"
-                    onClick={() => removeWholesaleTier(index)}
-                    aria-label="Xóa bậc giá sỉ"
-                  >
-                    <Trash2 className="size-4" />
-                  </Button>
-                </DynamicTableRow>
-              ))}
-            </DynamicTable>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="mt-3 gap-1"
-              onClick={addWholesaleTier}
-            >
-              <Plus className="size-4" /> Thêm bậc giá sỉ
-            </Button>
-            <Separator className="my-4" />
-            <p className="mb-2 text-sm font-medium">Giá đại lý / doanh nghiệp</p>
-            <DynamicTable
-              headers={['Số lượng tối thiểu', 'Giá / sản phẩm', '']}
-              columns="minmax(0,140px) 1fr 40px"
-              emptyText="Chưa có bậc giá đại lý."
-              isEmpty={form.enterpriseTiers.length === 0}
-            >
-              {form.enterpriseTiers.map((tier, index) => (
-                <DynamicTableRow key={index} columns="minmax(0,140px) 1fr 40px">
-                  <Input
-                    type="number"
-                    min={1}
-                    value={tier.minQty}
-                    onChange={(e) => updateEnterpriseTier(index, { minQty: e.target.value })}
-                  />
-                  <CurrencyInput
-                    value={tier.price}
-                    onChange={(price) => updateEnterpriseTier(index, { price })}
-                  />
-                  <Button type="button" variant="ghost" size="icon-sm" className="text-destructive" onClick={() => removeEnterpriseTier(index)}>
-                    <Trash2 className="size-4" />
-                  </Button>
-                </DynamicTableRow>
-              ))}
-            </DynamicTable>
-            <Button type="button" variant="outline" size="sm" className="mt-3 gap-1" onClick={addEnterpriseTier}>
-              <Plus className="size-4" /> Thêm bậc giá đại lý
-            </Button>
+            <div className="mb-3 flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={tierTab === 'wholesale' ? 'default' : 'outline'}
+                onClick={() => setTierTab('wholesale')}
+              >
+                Giá sỉ
+                {form.wholesaleTiers.length > 0 ? (
+                  <Badge variant="secondary" className="ml-2">
+                    {form.wholesaleTiers.length}
+                  </Badge>
+                ) : null}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={tierTab === 'enterprise' ? 'default' : 'outline'}
+                onClick={() => setTierTab('enterprise')}
+              >
+                Giá đại lý
+                {form.enterpriseTiers.length > 0 ? (
+                  <Badge variant="secondary" className="ml-2">
+                    {form.enterpriseTiers.length}
+                  </Badge>
+                ) : null}
+              </Button>
+            </div>
+            <p className="mb-3 text-xs text-muted-foreground">
+              {tierTab === 'wholesale'
+                ? 'Giá sỉ (B2B): lưu vào groupPrices.wholesale — chỉ DN đã duyệt. Đồng thời mirror vào wholesalePrice làm giá ưu đãi mua số lượng lớn cho khách lẻ.'
+                : 'Giá đại lý (B2B): chỉ lưu groupPrices.enterprise — chỉ DN đại lý đã duyệt.'}
+            </p>
+            {tierTab === 'wholesale' ? (
+              <>
+                <DynamicTable
+                  headers={['Số lượng tối thiểu', 'Giá / sản phẩm', '']}
+                  columns="minmax(0,140px) 1fr 40px"
+                  emptyText="Chưa có bậc giá sỉ."
+                  isEmpty={form.wholesaleTiers.length === 0}
+                >
+                  {form.wholesaleTiers.map((tier, index) => (
+                    <DynamicTableRow key={index} columns="minmax(0,140px) 1fr 40px">
+                      <Input
+                        type="number"
+                        min={1}
+                        value={tier.minQty}
+                        onChange={(e) => updateWholesaleTier(index, { minQty: e.target.value })}
+                        placeholder="50"
+                      />
+                      <CurrencyInput
+                        value={tier.price}
+                        onChange={(price) => updateWholesaleTier(index, { price })}
+                        placeholder="45000"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        className="text-destructive"
+                        onClick={() => removeWholesaleTier(index)}
+                        aria-label="Xóa bậc giá sỉ"
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </DynamicTableRow>
+                  ))}
+                </DynamicTable>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-3 gap-1"
+                  onClick={addWholesaleTier}
+                >
+                  <Plus className="size-4" /> Thêm bậc giá sỉ
+                </Button>
+              </>
+            ) : (
+              <>
+                <DynamicTable
+                  headers={['Số lượng tối thiểu', 'Giá / sản phẩm', '']}
+                  columns="minmax(0,140px) 1fr 40px"
+                  emptyText="Chưa có bậc giá đại lý."
+                  isEmpty={form.enterpriseTiers.length === 0}
+                >
+                  {form.enterpriseTiers.map((tier, index) => (
+                    <DynamicTableRow key={index} columns="minmax(0,140px) 1fr 40px">
+                      <Input
+                        type="number"
+                        min={1}
+                        value={tier.minQty}
+                        onChange={(e) => updateEnterpriseTier(index, { minQty: e.target.value })}
+                      />
+                      <CurrencyInput
+                        value={tier.price}
+                        onChange={(price) => updateEnterpriseTier(index, { price })}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        className="text-destructive"
+                        onClick={() => removeEnterpriseTier(index)}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </DynamicTableRow>
+                  ))}
+                </DynamicTable>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-3 gap-1"
+                  onClick={addEnterpriseTier}
+                >
+                  <Plus className="size-4" /> Thêm bậc giá đại lý
+                </Button>
+              </>
+            )}
           </CollapsibleSection>
 
           <CollapsibleSection

@@ -1,10 +1,12 @@
 const { sql } = require('../libs/db');
 
 function scopedRequest(parentRequest) {
-  if (parentRequest.transaction) {
-    return new sql.Request(parentRequest.transaction);
+  if (parentRequest instanceof sql.Transaction) {
+    return new sql.Request(parentRequest);
   }
-  return parentRequest;
+  // mssql v11 stores Transaction/Pool on Request.parent (not .transaction).
+  const parent = parentRequest.parent ?? parentRequest;
+  return new sql.Request(parent);
 }
 
 async function recordStockMovement(request, {
@@ -53,7 +55,7 @@ async function adjustProductStock(request, {
 }) {
   const currentResult = await scopedRequest(request)
     .input('productId', sql.NVarChar, productId)
-    .query('SELECT TOP 1 stock FROM dbo.products WHERE id = @productId WITH (UPDLOCK, ROWLOCK)');
+    .query('SELECT TOP 1 stock FROM dbo.products WITH (UPDLOCK, ROWLOCK) WHERE id = @productId');
 
   const current = currentResult.recordset[0];
   if (!current) {
@@ -174,7 +176,7 @@ async function setProductStockAbsolute(request, {
 }) {
   const currentResult = await scopedRequest(request)
     .input('productId', sql.NVarChar, productId)
-    .query('SELECT TOP 1 stock FROM dbo.products WHERE id = @productId WITH (UPDLOCK, ROWLOCK)');
+    .query('SELECT TOP 1 stock FROM dbo.products WITH (UPDLOCK, ROWLOCK) WHERE id = @productId');
 
   const current = currentResult.recordset[0];
   if (!current) {

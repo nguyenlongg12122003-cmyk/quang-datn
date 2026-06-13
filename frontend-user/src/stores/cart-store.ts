@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { OrderItemCustomization, Product } from '@/types'
+import { resolveCartUnitPrice } from '@/lib/product'
+import type { CustomerType, OrderItemCustomization, Product } from '@/types'
 
 export interface CartItem {
   lineId: string
@@ -30,6 +31,7 @@ interface CartState {
   ) => void
   updateQuantity: (lineId: string, quantity: number) => void
   removeItem: (lineId: string) => void
+  repriceItems: (products: Product[], customerType?: CustomerType) => void
   clear: () => void
 }
 
@@ -100,6 +102,23 @@ export const useCartStore = create<CartState>()(
         })),
       removeItem: (lineId) =>
         set((state) => ({ items: state.items.filter((i) => i.lineId !== lineId) })),
+      repriceItems: (products, customerType = 'retail') =>
+        set((state) => {
+          const byId = new Map(products.map((p) => [p.id, p]))
+          let changed = false
+          const items = state.items.map((item) => {
+            const product = byId.get(item.productId)
+            if (!product) return item
+            const unitPrice = resolveCartUnitPrice(product, item, customerType)
+            const stock = product.stock
+            if (unitPrice !== item.unitPrice || stock !== item.stock) {
+              changed = true
+              return { ...item, unitPrice, stock }
+            }
+            return item
+          })
+          return changed ? { items } : state
+        }),
       clear: () => set({ items: [] }),
     }),
     { name: 'quangvpp-cart' },

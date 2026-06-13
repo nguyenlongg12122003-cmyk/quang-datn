@@ -14,11 +14,11 @@ export function MidPageBanners() {
           </span>
           <h3 className="text-xl font-bold">Giá sỉ cho doanh nghiệp</h3>
           <p className="text-sm text-muted-foreground">
-            Giảm thêm 5–15% theo khối lượng, hỗ trợ báo giá và hóa đơn VAT cho trường học, công ty.
+            Đăng ký doanh nghiệp để được giá sỉ tự động, mua và thanh toán như khách hàng thường, hỗ trợ hóa đơn VAT.
           </p>
           <Button asChild size="sm" className="gap-1">
-            <Link to="/quotations">
-              Yêu cầu báo giá
+            <Link to="/account">
+              Đăng ký doanh nghiệp
               <ArrowRight className="size-4" />
             </Link>
           </Button>

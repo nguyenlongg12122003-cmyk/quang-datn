@@ -1,0 +1,18 @@
+---
+pid: 10428
+cwd: "D:\Projects\quang-datn"
+command: "$conn = Get-NetTCPConnection -LocalPort 5000 -ErrorAction SilentlyContinue | Select-Object -First 1; if ($conn) { Stop-Process -Id $conn.OwningProcess -Force }; Start-Sleep -Seconds 1; cd D:\\Projects\\quang-datn\\backend; node src/server.js"
+started_at: 2026-06-13T14:54:29.045Z
+running_for_ms: 9455003  
+---
+[db] Using existing database "VanPhongPham_DB"
+[server] Port 5000 is already in use. Stop the other process or set PORT to a different value in .env.
+[initDb] Checking for pending migrations...
+[Migration] Applied migrations: 5
+[Migration] Found 5 migration files
+[Migration] ⊘ Skipping (already applied): 001_add_voucher_improvements.sql
+[Migration] ⊘ Skipping (already applied): 002_voucher_auto_distribution.sql
+[Migration] ⊘ Skipping (already applied): 003_add_order_shipping_fields.sql
+[Migration] ⊘ Skipping (already applied): 004_level2_b2b_inventory.sql
+[Migration] ⊘ Skipping (already applied): 005_add_business_documents_history.sql
+[Migration] ✓ All migrations up to date

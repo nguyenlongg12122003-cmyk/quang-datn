@@ -32,6 +32,10 @@ export const catalogApi = {
       .then((r) => r.data),
   getProduct: (idOrSlug: string) =>
     api.get<Product>(`/catalog/products/${idOrSlug}`).then((r) => r.data),
+  getProductsByIds: (ids: string[]) =>
+    api
+      .post<Product[]>('/catalog/products/by-ids', { ids })
+      .then((r) => r.data),
   searchSuggestions: (q: string) =>
     api
       .get<string[]>('/catalog/search-suggestions', { params: { q } })

@@ -473,6 +473,25 @@ router.patch('/:userId/review', authMiddleware, adminMiddleware, async (req, res
         .query('UPDATE dbo.users SET customerType = @customerType WHERE id = @userId');
     }
 
+    if (status === 'approved') {
+      const userRow = await pool.request()
+        .input('userId', sql.NVarChar, req.params.userId)
+        .query('SELECT TOP 1 email, name FROM dbo.users WHERE id = @userId');
+      const user = userRow.recordset[0];
+      const notifyEmail = profile.contactEmail || user?.email;
+      if (notifyEmail) {
+        const { sendBusinessApprovedEmail } = require('../services/emailService');
+        sendBusinessApprovedEmail({
+          email: notifyEmail,
+          name: user?.name,
+          companyName: profile.companyName,
+          customerType: customerType || 'wholesale',
+        }).catch((err) => {
+          console.error('[email] business approval notification failed:', err.message);
+        });
+      }
+    }
+
     const updated = await getBusinessProfileByUserId(pool, req.params.userId);
     return res.json({ profile: updated, message: 'Cập nhật hồ sơ doanh nghiệp thành công' });
   } catch (error) {

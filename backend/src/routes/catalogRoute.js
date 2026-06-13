@@ -232,6 +232,36 @@ router.get('/products', async (req, res, next) => {
   }
 });
 
+router.post('/products/by-ids', async (req, res, next) => {
+  try {
+    const { ids } = req.body || {};
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.json([]);
+    }
+
+    const uniqueIds = [...new Set(ids.map(String).filter(Boolean))].slice(0, 50);
+    if (uniqueIds.length === 0) {
+      return res.json([]);
+    }
+
+    const pool = await getPool();
+    const request = pool.request();
+    uniqueIds.forEach((id, i) => {
+      request.input(`id${i}`, sql.NVarChar, id);
+    });
+    const inClause = uniqueIds.map((_, i) => `@id${i}`).join(',');
+
+    const result = await request.query(`
+      SELECT * FROM dbo.products
+      WHERE id IN (${inClause}) AND [status] = 'active'
+    `);
+
+    return res.json(result.recordset.map(mapProductRow));
+  } catch (error) {
+    return next(error);
+  }
+});
+
 router.get('/products/:idOrSlug', async (req, res, next) => {
   try {
     const { idOrSlug } = req.params;

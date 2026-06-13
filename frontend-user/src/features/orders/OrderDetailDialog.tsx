@@ -1,4 +1,3 @@
-import { Link } from 'react-router'
 import {
   Dialog,
   DialogContent,
@@ -202,12 +201,7 @@ export function OrderDetailDialog({
                   <Row label="Dự kiến giao" value={formatDate(order.estimatedDeliveryDate)} />
                 ) : null}
                 {order.quotationId ? (
-                  <div className="flex items-center justify-between gap-2 pt-1">
-                    <span className="text-muted-foreground">Báo giá nguồn</span>
-                    <Button asChild variant="link" size="sm" className="h-auto px-0">
-                      <Link to="/quotations">{order.quotationId}</Link>
-                    </Button>
-                  </div>
+                  <Row label="Mã báo giá (cũ)" value={order.quotationId} />
                 ) : null}
               </section>
 

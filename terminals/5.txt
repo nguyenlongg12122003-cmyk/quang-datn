@@ -1,0 +1,47 @@
+---
+pid: 2712
+cwd: "D:\Projects\quang-datn"
+command: "Get-NetTCPConnection -LocalPort 5000 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }; Start-Sleep -Seconds 2; cd D:\\Projects\\quang-datn\\backend; node src/server.js"
+started_at: 2026-06-13T14:54:53.030Z
+running_for_ms: 9430000  
+---
+[db] Using existing database "VanPhongPham_DB"
+[initDb] Checking for pending migrations...
+[Migration] Applied migrations: 5
+[Migration] Found 5 migration files
+[Migration] ⊘ Skipping (already applied): 001_add_voucher_improvements.sql
+[Migration] ⊘ Skipping (already applied): 002_voucher_auto_distribution.sql
+[Migration] ⊘ Skipping (already applied): 003_add_order_shipping_fields.sql
+[Migration] ⊘ Skipping (already applied): 004_level2_b2b_inventory.sql
+[Migration] ⊘ Skipping (already applied): 005_add_business_documents_history.sql
+[Migration] ✓ All migrations up to date
+[server] Backend listening on port 5000
+[server] Socket.IO attached
+[socket] Connected: quang@admin.com (admin) — socket KJpKIf1Ty-MRmf1xAAAB
+[socket] Connected: phanquang@user.com (customer) — socket XVeNFbfAnoFrZ3vQAAAE
+[email] SMTP not configured — would send:
+  To: pendingbiz@company.com
+  Subject: [Quang VPP] Hồ sơ doanh nghiệp đã được duyệt
+  Body:
+Xin chào Lê Văn Dũng,
+
+Hồ sơ doanh nghiệp "Công ty CP Demo Logistics" đã được admin phê duyệt.
+Nhóm giá áp dụng: Giá sỉ.
+
+Bạn có thể đăng nhập và mua hàng với giá B2B tại: http://localhost:5173
+
+Trân trọng,
+Quang VPP
+[email] SMTP not configured — would send:
+  To: pendingbiz@company.com
+  Subject: [Quang VPP] Hồ sơ doanh nghiệp đã được duyệt
+  Body:
+Xin chào Lê Văn Dũng,
+
+Hồ sơ doanh nghiệp "Công ty CP Demo Logistics" đã được admin phê duyệt.
+Nhóm giá áp dụng: Giá sỉ.
+
+Bạn có thể đăng nhập và mua hàng với giá B2B tại: http://localhost:5173
+
+Trân trọng,
+Quang VPP
