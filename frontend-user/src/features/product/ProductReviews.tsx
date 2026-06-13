@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { RatingStars } from '@/components/common/RatingStars'
 import { EmptyState } from '@/components/common/EmptyState'
+import { ReviewSummary } from '@/features/product/ReviewSummary'
 import { formatDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { getErrorMessage } from '@/lib/api/axios'
@@ -15,9 +16,10 @@ import { useCreateReview, useProductReviews } from '@/features/catalog/api'
 
 interface ProductReviewsProps {
   productId: string
+  averageRating?: number
 }
 
-export function ProductReviews({ productId }: ProductReviewsProps) {
+export function ProductReviews({ productId, averageRating }: ProductReviewsProps) {
   const { data: reviews = [], isLoading } = useProductReviews(productId)
   const token = useAuthStore((s) => s.token)
   const createReview = useCreateReview(productId)
@@ -44,7 +46,11 @@ export function ProductReviews({ productId }: ProductReviewsProps) {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold">Đánh giá sản phẩm</h2>
+      {isLoading ? (
+        <p className="text-sm text-muted-foreground">Đang tải đánh giá…</p>
+      ) : reviews.length > 0 ? (
+        <ReviewSummary reviews={reviews} averageRating={averageRating} />
+      ) : null}
 
       {token ? (
         <div className="space-y-3 rounded-xl border border-border p-4">
@@ -74,9 +80,7 @@ export function ProductReviews({ productId }: ProductReviewsProps) {
         <p className="text-sm text-muted-foreground">Đăng nhập để viết đánh giá.</p>
       )}
 
-      {isLoading ? (
-        <p className="text-sm text-muted-foreground">Đang tải đánh giá…</p>
-      ) : reviews.length === 0 ? (
+      {isLoading ? null : reviews.length === 0 ? (
         <EmptyState icon={Star} title="Chưa có đánh giá" description="Hãy là người đầu tiên đánh giá sản phẩm này." />
       ) : (
         <ul className="space-y-4">

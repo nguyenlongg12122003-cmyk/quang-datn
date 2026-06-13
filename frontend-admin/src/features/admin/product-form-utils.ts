@@ -42,6 +42,7 @@ export interface ProductFormState {
   isCustomizable: boolean
   customizationOptions: CustomizationOption[]
   specifications: SpecRow[]
+  publicBulkTiers: WholesaleRow[]
   wholesaleTiers: WholesaleRow[]
   enterpriseTiers: WholesaleRow[]
   packagingUnits: PackagingRow[]
@@ -70,6 +71,7 @@ export const EMPTY_PRODUCT_FORM: ProductFormState = {
   isCustomizable: false,
   customizationOptions: [],
   specifications: [],
+  publicBulkTiers: [],
   wholesaleTiers: [],
   enterpriseTiers: [],
   packagingUnits: [],
@@ -82,11 +84,34 @@ export const PRODUCT_FORM_SECTIONS = [
   { id: 'section-basic', label: 'Thông tin sản phẩm' },
   { id: 'section-media', label: 'Hình ảnh' },
   { id: 'section-pricing', label: 'Giá & tồn kho' },
-  { id: 'section-wholesale', label: 'Giá sỉ / B2B' },
+  { id: 'section-wholesale', label: 'Bảng giá theo SL' },
   { id: 'section-packaging', label: 'Quy cách đóng gói' },
   { id: 'section-specs', label: 'Thông số kỹ thuật' },
   { id: 'section-promo', label: 'Khuyến mãi & tùy chỉnh' },
 ] as const
+
+export type TierTab = 'public' | 'wholesale' | 'enterprise'
+
+export const TIER_TAB_META: Record<
+  TierTab,
+  { label: string; audience: string; storage: string }
+> = {
+  public: {
+    label: 'Giá lẻ (bulk)',
+    audience: 'Khách lẻ thường — hiển thị tab "Giá ưu đãi khi mua số lượng lớn"',
+    storage: 'Lưu vào wholesalePrice',
+  },
+  wholesale: {
+    label: 'Giá sỉ B2B',
+    audience: 'Doanh nghiệp sỉ đã được admin duyệt',
+    storage: 'Lưu vào groupPrices.wholesale',
+  },
+  enterprise: {
+    label: 'Giá đại lý B2B',
+    audience: 'Doanh nghiệp đại lý đã được admin duyệt',
+    storage: 'Lưu vào groupPrices.enterprise',
+  },
+}
 
 export type ProductFormFieldErrors = Partial<
   Record<
@@ -100,6 +125,142 @@ export type ProductFormFieldErrors = Partial<
     string
   >
 >
+
+export interface TierRowWarning {
+  index: number
+  message: string
+}
+
+export function parseCsvField(value: string): string[] {
+  return value
+    .split(',')
+    .map((v) => v.trim())
+    .filter(Boolean)
+}
+
+export function getDiscountPercent(price: number, originalPrice: number): number {
+  if (!Number.isFinite(price) || !Number.isFinite(originalPrice)) return 0
+  if (originalPrice <= price) return 0
+  return Math.round(((originalPrice - price) / originalPrice) * 100)
+}
+
+export function rowsToWholesalePrices(rows: WholesaleRow[]): WholesalePrice[] {
+  return rows
+    .filter((tier) => tier.minQty && tier.price)
+    .map((tier) => ({
+      minQty: Number(tier.minQty),
+      price: Number(tier.price),
+    }))
+    .filter(
+      (tier) =>
+        Number.isFinite(tier.minQty) && tier.minQty > 0 && Number.isFinite(tier.price),
+    )
+    .sort((a, b) => a.minQty - b.minQty)
+}
+
+export function getTierRowWarnings(
+  rows: WholesaleRow[],
+  basePrice: number | null,
+): TierRowWarning[] {
+  const warnings: TierRowWarning[] = []
+  const parsed = rows
+    .map((row, index) => ({
+      index,
+      minQty: Number(row.minQty),
+      price: Number(row.price),
+    }))
+    .filter((row) => row.minQty > 0 && Number.isFinite(row.price))
+
+  const qtyCounts = new Map<number, number>()
+  for (const row of parsed) {
+    qtyCounts.set(row.minQty, (qtyCounts.get(row.minQty) ?? 0) + 1)
+  }
+  for (const row of parsed) {
+    if ((qtyCounts.get(row.minQty) ?? 0) > 1) {
+      warnings.push({ index: row.index, message: `Trùng SL tối thiểu ${row.minQty}` })
+    }
+  }
+
+  const sorted = [...parsed].sort((a, b) => a.minQty - b.minQty)
+  for (let i = 1; i < sorted.length; i += 1) {
+    if (sorted[i].price > sorted[i - 1].price) {
+      warnings.push({
+        index: sorted[i].index,
+        message: `Giá bậc ${sorted[i].minQty} sp cao hơn bậc ${sorted[i - 1].minQty} sp`,
+      })
+    }
+  }
+
+  if (basePrice != null && Number.isFinite(basePrice)) {
+    for (const row of parsed) {
+      if (row.price > basePrice) {
+        warnings.push({
+          index: row.index,
+          message: `Giá tier (${row.price.toLocaleString('vi-VN')}đ) cao hơn giá lẻ`,
+        })
+      }
+    }
+  }
+
+  return warnings
+}
+
+export function getTierPreview(
+  tiers: WholesaleRow[],
+  qty: number,
+  basePrice: number,
+): number | null {
+  const parsed = rowsToWholesalePrices(tiers).filter((t) => qty >= t.minQty)
+  if (!parsed.length) return null
+  const best = Math.min(...parsed.map((t) => t.price))
+  return Math.min(basePrice, best)
+}
+
+export interface PriceHints {
+  discountPercent: number
+  flashSaleDiscountPercent: number
+  warnings: string[]
+}
+
+export function getPriceHints(form: ProductFormState): PriceHints {
+  const price = Number(form.price)
+  const originalPrice = Number(form.originalPrice)
+  const flashPrice = Number(form.flashSalePrice)
+  const warnings: string[] = []
+
+  if (Number.isFinite(price) && Number.isFinite(originalPrice) && price > originalPrice) {
+    warnings.push('Giá bán cao hơn giá gốc — khách sẽ không thấy giảm giá')
+  }
+
+  if (form.isFlashSale) {
+    if (!Number.isFinite(flashPrice)) {
+      warnings.push('Bật Flash Sale nhưng chưa nhập giá khuyến mãi')
+    } else if (Number.isFinite(price) && flashPrice >= price) {
+      warnings.push('Giá Flash Sale nên thấp hơn giá bán')
+    }
+    if (form.flashSaleEnd) {
+      const end = new Date(form.flashSaleEnd).getTime()
+      if (!Number.isNaN(end) && end <= Date.now()) {
+        warnings.push('Thời gian Flash Sale đã qua — khách sẽ không thấy khuyến mãi')
+      }
+    }
+  }
+
+  const effectivePrice =
+    form.isFlashSale && Number.isFinite(flashPrice) ? flashPrice : price
+
+  return {
+    discountPercent: getDiscountPercent(
+      Number.isFinite(effectivePrice) ? effectivePrice : 0,
+      Number.isFinite(originalPrice) ? originalPrice : 0,
+    ),
+    flashSaleDiscountPercent: getDiscountPercent(
+      Number.isFinite(flashPrice) ? flashPrice : 0,
+      Number.isFinite(originalPrice) ? originalPrice : 0,
+    ),
+    warnings,
+  }
+}
 
 export function getProductFormFieldErrors(form: ProductFormState): ProductFormFieldErrors {
   const errors: ProductFormFieldErrors = {}
@@ -175,7 +336,8 @@ export function buildProductFormState(product: Product | null): ProductFormState
     isCustomizable: Boolean(product.isCustomizable),
     customizationOptions: normalizeCustomizationOptionsForForm(product.customizationOptions),
     specifications: specificationsToRows(product.specifications),
-    wholesaleTiers: wholesaleToRows(product.wholesalePrice),
+    publicBulkTiers: wholesaleToRows(product.wholesalePrice),
+    wholesaleTiers: wholesaleToRows(product.groupPrices?.wholesale),
     enterpriseTiers: wholesaleToRows(product.groupPrices?.enterprise),
     packagingUnits: (product.packagingUnits ?? []).map((unit) => ({
       label: unit.label,
@@ -196,9 +358,14 @@ export function validateProductForm(form: ProductFormState): string | null {
   return 'Vui lòng kiểm tra các trường được đánh dấu'
 }
 
-export function buildProductPayload(form: ProductFormState): Partial<Product> {
-  const csv = (s: string) => s.split(',').map((v) => v.trim()).filter(Boolean)
+export function isProductFormDirty(
+  initial: ProductFormState,
+  current: ProductFormState,
+): boolean {
+  return JSON.stringify(initial) !== JSON.stringify(current)
+}
 
+export function buildProductPayload(form: ProductFormState): Partial<Product> {
   const customizationOptions: CustomizationOption[] = form.isCustomizable
     ? form.customizationOptions
         .filter((o) => o.label?.trim())
@@ -211,21 +378,9 @@ export function buildProductPayload(form: ProductFormState): Partial<Product> {
         }))
     : []
 
-  const wholesalePrice: WholesalePrice[] = form.wholesaleTiers
-    .filter((tier) => tier.minQty && tier.price)
-    .map((tier) => ({
-      minQty: Number(tier.minQty),
-      price: Number(tier.price),
-    }))
-    .filter((tier) => Number.isFinite(tier.minQty) && tier.minQty > 0 && Number.isFinite(tier.price))
-
-  const enterpriseTiers: WholesalePrice[] = form.enterpriseTiers
-    .filter((tier) => tier.minQty && tier.price)
-    .map((tier) => ({
-      minQty: Number(tier.minQty),
-      price: Number(tier.price),
-    }))
-    .filter((tier) => Number.isFinite(tier.minQty) && tier.minQty > 0 && Number.isFinite(tier.price))
+  const wholesalePrice = rowsToWholesalePrices(form.publicBulkTiers)
+  const wholesaleB2B = rowsToWholesalePrices(form.wholesaleTiers)
+  const enterpriseTiers = rowsToWholesalePrices(form.enterpriseTiers)
 
   const packagingUnits = form.packagingUnits
     .filter((row) => row.label && row.qtyPerUnit)
@@ -252,8 +407,8 @@ export function buildProductPayload(form: ProductFormState): Partial<Product> {
       url,
       alt: form.name,
     })),
-    tags: csv(form.tags),
-    colors: csv(form.colors),
+    tags: parseCsvField(form.tags),
+    colors: parseCsvField(form.colors),
     isFlashSale: form.isFlashSale,
     flashSalePrice: form.isFlashSale && form.flashSalePrice ? Number(form.flashSalePrice) : null,
     flashSaleEnd:
@@ -263,7 +418,7 @@ export function buildProductPayload(form: ProductFormState): Partial<Product> {
     specifications: rowsToSpecifications(form.specifications),
     wholesalePrice,
     groupPrices: {
-      wholesale: wholesalePrice,
+      wholesale: wholesaleB2B,
       enterprise: enterpriseTiers,
     },
     packagingUnits,

@@ -3,7 +3,7 @@ pid: 10912
 cwd: "D:\Projects\quang-datn"
 command: "cd D:\\Projects\\quang-datn\\backend && node src/server.js"
 started_at: 2026-06-13T15:20:47.408Z
-running_for_ms: 7885012  
+running_for_ms: 8940005  
 ---
 [db] Using existing database "VanPhongPham_DB"
 [initDb] Checking for pending migrations...
@@ -36,3 +36,15 @@ running_for_ms: 7885012
 [socket] Connected: phanquang@user.com (customer) — socket z6IGeS2kvI8pMJnYAAAc
 [socket] Disconnected: phanquang@user.com
 [socket] Connected: phanquang@user.com (customer) — socket N2m7_JASJW_ufI4mAAAf
+[socket] Disconnected: phanquang@user.com
+[socket] Connected: phanquang@user.com (customer) — socket gWN1MW0guqjVGcdrAAAi
+[socket] Disconnected: quang@admin.com
+[socket] Connected: quang@admin.com (admin) — socket -3mb59ySwHfP_pKeAAAl
+[socket] Disconnected: quang@admin.com
+[socket] Connected: quang@admin.com (admin) — socket -vaOVm_ijL--Pw26AAAo
+[socket] Disconnected: quang@admin.com
+[socket] Connected: quang@admin.com (admin) — socket 7cnbyCXejAkW8OXzAAAr
+[socket] Disconnected: quang@admin.com
+[socket] Connected: quang@admin.com (admin) — socket IbGzlB9fTSacLQxMAAAu
+[socket] Disconnected: quang@admin.com
+[socket] Connected: quang@admin.com (admin) — socket zGD_QWXh9k6KP2wxAAAx

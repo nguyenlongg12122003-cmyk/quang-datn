@@ -3,7 +3,7 @@ pid: 10428
 cwd: "D:\Projects\quang-datn"
 command: "$conn = Get-NetTCPConnection -LocalPort 5000 -ErrorAction SilentlyContinue | Select-Object -First 1; if ($conn) { Stop-Process -Id $conn.OwningProcess -Force }; Start-Sleep -Seconds 1; cd D:\\Projects\\quang-datn\\backend; node src/server.js"
 started_at: 2026-06-13T14:54:29.045Z
-running_for_ms: 9455003  
+running_for_ms: 9875005  
 ---
 [db] Using existing database "VanPhongPham_DB"
 [server] Port 5000 is already in use. Stop the other process or set PORT to a different value in .env.

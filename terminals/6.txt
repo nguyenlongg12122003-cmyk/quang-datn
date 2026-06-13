@@ -3,7 +3,7 @@ pid: 25444
 cwd: "D:\Projects\quang-datn"
 command: "Get-NetTCPConnection -LocalPort 5000 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }; Start-Sleep -Seconds 2; cd D:\\Projects\\quang-datn\\backend; node src/server.js"
 started_at: 2026-06-13T14:56:46.850Z
-running_for_ms: 9315001  
+running_for_ms: 9735000  
 ---
 [db] Using existing database "VanPhongPham_DB"
 [initDb] Checking for pending migrations...

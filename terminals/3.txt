@@ -3,7 +3,7 @@ pid: 26948
 cwd: "D:\Projects\quang-datn"
 command: "cd D:\\Projects\\quang-datn\\frontend-user && npm run dev"
 started_at: 2026-06-13T14:52:36.512Z
-running_for_ms: 9564992  
+running_for_ms: 9985003  
 ---
 
 > frontend-user@1.0.0 dev

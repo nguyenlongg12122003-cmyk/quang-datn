@@ -21,19 +21,18 @@ export function AdminProductFormPage() {
 
   if (isEdit && isLoading) {
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-5 w-64" />
-        <Skeleton className="h-14 w-full rounded-lg" />
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="space-y-6">
-            <Skeleton className="h-56 w-full rounded-xl" />
-            <Skeleton className="h-48 w-full rounded-xl" />
-            <Skeleton className="h-40 w-full rounded-xl" />
+      <div className="space-y-6">
+        <Skeleton className="h-5 w-72" />
+        <div className="flex justify-between gap-4">
+          <Skeleton className="h-10 w-64" />
+          <div className="flex gap-2">
+            <Skeleton className="h-10 w-20" />
+            <Skeleton className="h-10 w-28" />
           </div>
-          <div className="space-y-4">
-            <Skeleton className="h-64 w-full rounded-xl" />
-            <Skeleton className="h-72 w-full rounded-xl" />
-          </div>
+        </div>
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
+          <Skeleton className="h-[520px] w-full rounded-xl" />
+          <Skeleton className="h-72 w-full rounded-xl" />
         </div>
       </div>
     )
@@ -97,7 +96,7 @@ export function AdminProductFormPage() {
       ]
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <PageBreadcrumb items={breadcrumbItems} />
       <ProductForm
         key={product?.id ?? 'new'}
