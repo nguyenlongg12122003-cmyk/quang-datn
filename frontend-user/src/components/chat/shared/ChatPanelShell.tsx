@@ -24,7 +24,7 @@ export function ChatPanelShell({
   return (
     <div
       className={cn(
-        'fixed bottom-24 right-5 z-50 flex h-[32rem] w-[min(92vw,24rem)] flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-2xl',
+        'fixed bottom-24 right-5 z-[60] flex h-[32rem] w-[min(92vw,24rem)] flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-2xl',
         className,
       )}
     >
