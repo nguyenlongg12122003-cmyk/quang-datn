@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type MouseEvent } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router'
-import { MessageSquare, Palette, Printer } from 'lucide-react'
+import { MessageSquare, Palette, Printer, Truck } from 'lucide-react'
 import { toast } from 'sonner'
 import { AdminActiveFilterChips } from '@/components/admin/AdminActiveFilterChips'
 import { AdminDataPanel } from '@/components/admin/AdminDataPanel'
@@ -60,8 +60,21 @@ import {
 import type { OrderSort, OrderTab } from '@/lib/api/endpoints/orders'
 import type { Order, OrderStatus, PaymentMethod, PaymentStatus, ShippingCarrier } from '@/types'
 import { cn } from '@/lib/utils'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 const PAGE_SIZE = 20
+
+const PAYMENT_METHOD_SHORT: Record<PaymentMethod, string> = {
+  cod: 'COD',
+  vnpay: 'VNPay',
+  payos: 'PayOS',
+  credit: 'Công nợ',
+}
+
+const STICKY_ACTION_HEAD =
+  'sticky right-0 z-10 bg-muted/95 shadow-[-6px_0_10px_-8px_rgba(0,0,0,0.15)] backdrop-blur-sm'
+const STICKY_ACTION_CELL =
+  'sticky right-0 z-10 bg-background shadow-[-6px_0_10px_-8px_rgba(0,0,0,0.12)] group-hover:bg-muted/50'
 
 const ORDER_TABS: OrderTab[] = [
   'all',
@@ -196,6 +209,7 @@ export function AdminOrdersPage() {
   const hasActiveFilters = Boolean(q.trim()) || hasExtraFilters
   const emptyState = getOrderTabEmptyState(tab, hasActiveFilters)
   const showNeedsActionHints = tab === 'needs_action'
+  const showShippingColumn = tab === 'shipping'
 
   const updateSearchParams = (mutate: (params: URLSearchParams) => void) => {
     const params = new URLSearchParams(searchParams)
@@ -511,8 +525,17 @@ export function AdminOrdersPage() {
         </AdminDataPanel>
       ) : (
         <>
-          <AdminDataPanel className="hidden md:block">
-            <Table>
+          <AdminDataPanel className="hidden lg:block">
+            <Table className="table-fixed">
+              <colgroup>
+                <col className="w-10" />
+                <col className={showShippingColumn ? 'w-[min(28%,240px)]' : 'w-[min(32%,280px)]'} />
+                <col className="w-[16%]" />
+                <col className="w-[13%]" />
+                <col className={showShippingColumn ? 'w-[min(16%,140px)]' : 'w-[min(22%,200px)]'} />
+                {showShippingColumn ? <col className="w-[min(18%,160px)]" /> : null}
+                <col className="w-[88px]" />
+              </colgroup>
               <TableHeader className="bg-muted/30">
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="w-10">
@@ -522,14 +545,16 @@ export function AdminOrdersPage() {
                       aria-label="Chọn tất cả đơn hiển thị"
                     />
                   </TableHead>
-                  <TableHead>Mã đơn</TableHead>
-                  <TableHead>Khách hàng</TableHead>
-                  <TableHead>Sản phẩm</TableHead>
-                  <TableHead>Thanh toán</TableHead>
-                  <TableHead>Ngày / Chờ</TableHead>
-                  <TableHead className="text-right">Tổng</TableHead>
-                  <TableHead>Trạng thái</TableHead>
-                  <TableHead className="text-right">Thao tác</TableHead>
+                  <TableHead className="whitespace-normal">Đơn hàng</TableHead>
+                  <TableHead className="whitespace-normal">Thanh toán</TableHead>
+                  <TableHead className="whitespace-normal">Thời gian</TableHead>
+                  <TableHead className="whitespace-normal">Trạng thái</TableHead>
+                  {showShippingColumn ? (
+                    <TableHead className="whitespace-normal">Vận chuyển</TableHead>
+                  ) : null}
+                  <TableHead className={cn('text-right whitespace-normal', STICKY_ACTION_HEAD)}>
+                    Thao tác
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -540,66 +565,87 @@ export function AdminOrdersPage() {
                   const needsActionReasons = showNeedsActionHints
                     ? getNeedsActionReasons(order)
                     : []
+                  const visibleReasons = needsActionReasons.slice(0, 2)
+                  const hiddenReasonCount = needsActionReasons.length - visibleReasons.length
 
                   return (
                     <TableRow
                       key={order.id}
-                      className="cursor-pointer"
+                      className="group cursor-pointer"
                       onClick={(event) => handleRowClick(event, order.id)}
                     >
-                      <TableCell className="align-top">
+                      <TableCell className="align-top whitespace-normal">
                         <Checkbox
                           checked={selectedIds.has(order.id)}
                           onCheckedChange={(checked) => toggleOrder(order.id, checked === true)}
                           aria-label={`Chọn đơn ${order.id}`}
                         />
                       </TableCell>
-                      <TableCell className="align-top font-medium">
-                        <Link
-                          to={`/orders/${order.id}`}
-                          state={orderDetailState}
-                          className="text-primary hover:underline"
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          {order.id}
-                        </Link>
-                        {order.note?.trim() ? (
-                          <div className="mt-1 flex items-center gap-1 text-xs text-amber-700">
-                            <MessageSquare className="size-3 shrink-0" />
-                            <span className="line-clamp-1">{order.note.trim()}</span>
-                          </div>
-                        ) : null}
-                        {order.status === 'processing' ? (
-                          <div
-                            className={cn(
-                              'mt-1 text-xs',
-                              hasPackingSlipPrinted(order)
-                                ? 'text-green-700'
-                                : 'font-medium text-amber-700',
-                            )}
+                      <TableCell className="min-w-0 align-top whitespace-normal">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                          <Link
+                            to={`/orders/${order.id}`}
+                            state={orderDetailState}
+                            className="font-medium text-primary hover:underline"
+                            onClick={(event) => event.stopPropagation()}
                           >
-                            {hasPackingSlipPrinted(order) ? 'Đã in phiếu' : 'Chưa in phiếu'}
-                          </div>
-                        ) : null}
+                            {order.id}
+                          </Link>
+                          <span className="text-sm text-muted-foreground">
+                            {order.shippingAddress.name}
+                          </span>
+                        </div>
+                        <div className="mt-0.5 text-xs text-muted-foreground">
+                          {order.shippingAddress.phone}
+                        </div>
+                        <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
+                          {summarizeOrderItems(order.items)}
+                        </p>
+                        <div className="mt-1 flex flex-wrap items-center gap-1">
+                          {customizedItemCount > 0 ? (
+                            <Badge
+                              variant="outline"
+                              className="border-violet-200 bg-violet-50 text-[11px] font-normal text-violet-800"
+                            >
+                              <Palette className="mr-1 size-3" />
+                              {customizedItemCount === 1 ? 'Tùy chỉnh' : `${customizedItemCount} tùy chỉnh`}
+                            </Badge>
+                          ) : null}
+                          {order.note?.trim() ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge
+                                  variant="outline"
+                                  className="max-w-full cursor-default border-amber-200 bg-amber-50 text-[11px] font-normal text-amber-800"
+                                >
+                                  <MessageSquare className="mr-1 size-3 shrink-0" />
+                                  <span className="truncate">{order.note.trim()}</span>
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-xs">
+                                {order.note.trim()}
+                              </TooltipContent>
+                            </Tooltip>
+                          ) : null}
+                          {order.status === 'processing' ? (
+                            <span
+                              className={cn(
+                                'text-[11px]',
+                                hasPackingSlipPrinted(order)
+                                  ? 'text-green-700'
+                                  : 'font-medium text-amber-700',
+                              )}
+                            >
+                              {hasPackingSlipPrinted(order) ? 'Đã in phiếu' : 'Chưa in phiếu'}
+                            </span>
+                          ) : null}
+                        </div>
                       </TableCell>
-                      <TableCell className="align-top">
-                        <div className="font-medium">{order.shippingAddress.name}</div>
-                        <div className="text-sm text-muted-foreground">{order.shippingAddress.phone}</div>
-                      </TableCell>
-                      <TableCell className="max-w-[200px] align-top text-sm text-muted-foreground">
-                        <span className="line-clamp-2">{summarizeOrderItems(order.items)}</span>
-                        {customizedItemCount > 0 ? (
-                          <Badge
-                            variant="outline"
-                            className="mt-1 border-violet-200 bg-violet-50 text-[11px] font-normal text-violet-800"
-                          >
-                            <Palette className="mr-1 size-3" />
-                            {customizedItemCount === 1 ? 'Tùy chỉnh' : `${customizedItemCount} tùy chỉnh`}
-                          </Badge>
-                        ) : null}
-                      </TableCell>
-                      <TableCell className="align-top">
-                        <div className="text-sm">{PAYMENT_METHOD_LABELS[order.paymentMethod]}</div>
+                      <TableCell className="align-top whitespace-normal">
+                        <div className="font-medium">{formatCurrency(order.total)}</div>
+                        <div className="mt-0.5 text-xs text-muted-foreground">
+                          {PAYMENT_METHOD_SHORT[order.paymentMethod]}
+                        </div>
                         <div
                           className={cn(
                             'text-xs',
@@ -611,8 +657,8 @@ export function AdminOrdersPage() {
                           {PAYMENT_STATUS_LABELS[order.paymentStatus]}
                         </div>
                       </TableCell>
-                      <TableCell className="align-top">
-                        <div className="text-muted-foreground">{formatDate(order.createdAt)}</div>
+                      <TableCell className="align-top whitespace-normal">
+                        <div className="text-sm text-muted-foreground">{formatDate(order.createdAt)}</div>
                         <div
                           className={cn(
                             'text-xs',
@@ -624,44 +670,88 @@ export function AdminOrdersPage() {
                           {formatRelative(order.createdAt)}
                         </div>
                       </TableCell>
-                      <TableCell className="align-top text-right font-medium">
-                        {formatCurrency(order.total)}
-                      </TableCell>
-                      <TableCell className="align-top">
-                        <div className="flex flex-wrap items-center gap-1.5">
+                      <TableCell className="min-w-0 align-top whitespace-normal">
+                        <div className="flex flex-wrap items-center gap-1">
                           <OrderStatusBadge status={order.status} />
                           {hasPendingReturn(order) ? (
                             <Badge variant="outline" className="border-amber-300 text-amber-700">
-                              Chờ hoàn trả
+                              Hoàn trả
                             </Badge>
                           ) : null}
+                          {visibleReasons.map((reason) => (
+                            <Badge key={reason} variant="secondary" className="text-[11px] font-normal">
+                              {reason}
+                            </Badge>
+                          ))}
+                          {hiddenReasonCount > 0 ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge variant="secondary" className="cursor-default text-[11px] font-normal">
+                                  +{hiddenReasonCount}
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">
+                                {needsActionReasons.slice(2).join(' · ')}
+                              </TooltipContent>
+                            </Tooltip>
+                          ) : null}
                         </div>
-                        {needsActionReasons.length > 0 ? (
-                          <div className="mt-1.5 flex flex-wrap gap-1">
-                            {needsActionReasons.map((reason) => (
-                              <Badge
-                                key={reason}
-                                variant="secondary"
-                                className="text-[11px] font-normal"
-                              >
-                                {reason}
-                              </Badge>
-                            ))}
-                          </div>
-                        ) : null}
-                        {order.trackingNumber ? (
-                          <div className="mt-1 text-xs text-muted-foreground">
-                            {order.shippingCarrier
-                              ? `${SHIPPING_CARRIER_LABELS[order.shippingCarrier]} · `
-                              : ''}
-                            {order.trackingNumber}
-                          </div>
+                        {!showShippingColumn && order.trackingNumber ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                                <Truck className="size-3 shrink-0" />
+                                <span className="truncate">
+                                  {order.shippingCarrier
+                                    ? `${SHIPPING_CARRIER_LABELS[order.shippingCarrier]} · `
+                                    : ''}
+                                  {order.trackingNumber}
+                                </span>
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs">
+                              {order.shippingCarrier
+                                ? `${SHIPPING_CARRIER_LABELS[order.shippingCarrier]} · `
+                                : ''}
+                              {order.trackingNumber}
+                            </TooltipContent>
+                          </Tooltip>
                         ) : null}
                       </TableCell>
-                      <TableCell className="align-top" data-row-action>
+                      {showShippingColumn ? (
+                        <TableCell className="min-w-0 align-top whitespace-normal">
+                          {order.trackingNumber ? (
+                            <>
+                              {order.shippingCarrier ? (
+                                <div className="text-xs font-medium">
+                                  {SHIPPING_CARRIER_LABELS[order.shippingCarrier]}
+                                </div>
+                              ) : null}
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                                    <Truck className="size-3 shrink-0" />
+                                    <span className="line-clamp-2 break-all">{order.trackingNumber}</span>
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-xs break-all">
+                                  {order.trackingNumber}
+                                </TooltipContent>
+                              </Tooltip>
+                            </>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">Chưa có mã</span>
+                          )}
+                        </TableCell>
+                      ) : null}
+                      <TableCell
+                        className={cn('align-top whitespace-normal', STICKY_ACTION_CELL)}
+                        data-row-action
+                      >
                         <OrderRowAction
                           order={order}
                           pending={rowPending}
+                          compact
                           onAdvance={(next) => changeStatus(order, next)}
                           onHandoff={() => openHandoff(order)}
                           onDeliver={() => setDeliverOrder(order)}
@@ -674,7 +764,7 @@ export function AdminOrdersPage() {
             </Table>
           </AdminDataPanel>
 
-          <div className="space-y-3 md:hidden">
+          <div className="space-y-3 lg:hidden">
             {orders.map((order) => {
               const rowPending = updateStatus.isPending && updateStatus.variables?.id === order.id
 

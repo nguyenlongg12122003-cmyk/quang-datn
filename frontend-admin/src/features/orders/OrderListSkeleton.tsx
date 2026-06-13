@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/table'
 
 const SKELETON_ROWS = 5
+const TABLE_COLUMN_COUNT = 6
 
 function TableRowSkeleton() {
   return (
@@ -19,30 +20,22 @@ function TableRowSkeleton() {
       </TableCell>
       <TableCell>
         <Skeleton className="h-4 w-24" />
-        <Skeleton className="mt-1 h-3 w-16" />
-      </TableCell>
-      <TableCell>
-        <Skeleton className="h-4 w-28" />
-        <Skeleton className="mt-1 h-3 w-20" />
-      </TableCell>
-      <TableCell>
-        <Skeleton className="h-4 w-36" />
+        <Skeleton className="mt-1 h-3 w-28" />
+        <Skeleton className="mt-1 h-3 w-full" />
       </TableCell>
       <TableCell>
         <Skeleton className="h-4 w-20" />
+        <Skeleton className="mt-1 h-3 w-14" />
       </TableCell>
       <TableCell>
         <Skeleton className="h-4 w-16" />
         <Skeleton className="mt-1 h-3 w-14" />
       </TableCell>
-      <TableCell className="text-right">
-        <Skeleton className="ml-auto h-4 w-20" />
-      </TableCell>
       <TableCell>
         <Skeleton className="h-6 w-24 rounded-full" />
       </TableCell>
       <TableCell className="text-right">
-        <Skeleton className="ml-auto h-8 w-24" />
+        <Skeleton className="ml-auto h-8 w-16" />
       </TableCell>
     </TableRow>
   )
@@ -71,11 +64,11 @@ function CardSkeleton() {
 export function OrderListSkeleton() {
   return (
     <>
-      <Card className="hidden p-0 md:block">
+      <Card className="hidden p-0 lg:block">
         <Table>
           <TableHeader>
             <TableRow>
-              {Array.from({ length: 9 }).map((_, index) => (
+              {Array.from({ length: TABLE_COLUMN_COUNT }).map((_, index) => (
                 <TableHead key={index}>
                   <Skeleton className="h-4 w-16" />
                 </TableHead>
@@ -90,7 +83,7 @@ export function OrderListSkeleton() {
         </Table>
       </Card>
 
-      <div className="space-y-3 md:hidden">
+      <div className="space-y-3 lg:hidden">
         {Array.from({ length: SKELETON_ROWS }).map((_, index) => (
           <CardSkeleton key={index} />
         ))}
