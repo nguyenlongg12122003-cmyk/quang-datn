@@ -7,7 +7,7 @@ const {
   estimateDeliveryDate,
 } = require('./priceService');
 const { deductStockForOrder } = require('./inventoryService');
-const { getBusinessProfileByUserId, getOutstandingCredit } = require('../routes/businessRoute');
+
 
 async function getCustomerType(request, userId) {
   const result = await request
@@ -90,7 +90,7 @@ async function createOrderTransaction(pool, {
   createdBy,
 }) {
   const normalizedPaymentMethod = paymentMethod || 'cod';
-  if (!['cod', 'vnpay', 'payos', 'credit'].includes(normalizedPaymentMethod)) {
+  if (!['cod', 'vnpay', 'payos'].includes(normalizedPaymentMethod)) {
     throw new Error('Phương thức thanh toán không hợp lệ');
   }
 
@@ -101,27 +101,8 @@ async function createOrderTransaction(pool, {
     const request = new sql.Request(transaction);
     const { builtItems, productsById } = await buildValidatedItems(request, userId, items);
 
-    let paymentTermDays = null;
-    let paymentDueDate = null;
-
-    if (normalizedPaymentMethod === 'credit') {
-      const profile = await getBusinessProfileByUserId(pool, userId);
-      if (!profile || profile.status !== 'approved' || profile.paymentTermDays <= 0) {
-        throw new Error('Tài khoản chưa được cấp quyền thanh toán công nợ');
-      }
-
-      const outstanding = await getOutstandingCredit(pool, userId);
-      const computedSubtotalPreview = builtItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-      const computedTotalPreview = Math.max(0, computedSubtotalPreview + Number(shippingFee || 0) - Number(discount || 0));
-
-      if (outstanding + computedTotalPreview > profile.creditLimit) {
-        throw new Error('Vượt quá hạn mức công nợ cho phép');
-      }
-
-      paymentTermDays = profile.paymentTermDays;
-      paymentDueDate = new Date();
-      paymentDueDate.setUTCDate(paymentDueDate.getUTCDate() + paymentTermDays);
-    }
+    const paymentTermDays = null;
+    const paymentDueDate = null;
 
     const orderId = `ORD-${Date.now().toString().slice(-8)}`;
     const computedSubtotal = builtItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -139,9 +120,9 @@ async function createOrderTransaction(pool, {
       .input('shippingFee', sql.Decimal(18, 2), Number(shippingFee || 0))
       .input('discount', sql.Decimal(18, 2), Number(discount || 0))
       .input('total', sql.Decimal(18, 2), computedTotal)
-      .input('status', sql.NVarChar, normalizedPaymentMethod === 'credit' ? 'confirmed' : 'pending')
+      .input('status', sql.NVarChar, 'pending')
       .input('paymentMethod', sql.NVarChar, normalizedPaymentMethod)
-      .input('paymentStatus', sql.NVarChar, normalizedPaymentMethod === 'credit' ? 'pending' : 'pending')
+      .input('paymentStatus', sql.NVarChar, 'pending')
       .input('shippingMethod', sql.NVarChar, shippingMethod || 'standard')
       .input('shippingAddress', sql.NVarChar(sql.MAX), JSON.stringify(shippingAddress || {}))
       .input('voucherCode', sql.NVarChar, voucherCode || null)
@@ -191,8 +172,8 @@ async function createOrderTransaction(pool, {
 
     await deductStockForOrder(request, builtItems, { orderId, createdBy: createdBy || userId });
 
-    const initialStatus = normalizedPaymentMethod === 'credit' ? 'confirmed' : 'pending';
-    const initialNote = normalizedPaymentMethod === 'credit' ? 'Đơn hàng công nợ được xác nhận' : null;
+    const initialStatus = 'pending';
+    const initialNote = null;
     await request
       .input('orderId', sql.NVarChar, orderId)
       .input('timelineStatus', sql.NVarChar, initialStatus)

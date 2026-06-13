@@ -34,9 +34,6 @@ export function CheckoutPage() {
   const user = useAuthStore((s) => s.user)
   const createOrder = useCreateOrder()
   const { data: businessData } = useBusinessProfile()
-  const canUseCredit = Boolean(
-    businessData?.profile?.status === 'approved' && businessData.profile.paymentTermDays > 0,
-  )
 
   const addresses = user?.addresses ?? []
   const defaultAddressId = addresses.find((a) => a.isDefault)?.id ?? addresses[0]?.id
@@ -78,19 +75,9 @@ export function CheckoutPage() {
     )
   }
 
-  const exceedsCredit =
-    canUseCredit &&
-    payment === 'credit' &&
-    businessData?.availableCredit != null &&
-    total > businessData.availableCredit
-
   const submit = () => {
     if (!selectedAddress) {
       toast.error('Vui lòng chọn địa chỉ giao hàng')
-      return
-    }
-    if (exceedsCredit) {
-      toast.error('Đơn hàng vượt hạn mức công nợ còn lại')
       return
     }
     const shippingAddress: Address = selectedAddress
@@ -215,7 +202,7 @@ export function CheckoutPage() {
             <CardContent className="space-y-3">
               <RadioGroup value={payment} onValueChange={(v) => setPayment(v as PaymentMethod)} className="space-y-2">
                 {(Object.keys(PAYMENT_METHOD_LABELS) as PaymentMethod[])
-                  .filter((method) => method !== 'credit' || canUseCredit)
+                  .filter((method) => method !== 'credit')
                   .map((method) => (
                   <label
                     key={method}
@@ -229,22 +216,6 @@ export function CheckoutPage() {
                   </label>
                 ))}
               </RadioGroup>
-              {canUseCredit && businessData?.availableCredit != null ? (
-                <p className={cn(
-                  'rounded-lg border p-3 text-sm',
-                  total > businessData.availableCredit
-                    ? 'border-destructive/40 bg-destructive/5 text-destructive'
-                    : 'border-border bg-muted/40 text-muted-foreground',
-                )}>
-                  Hạn mức công nợ còn lại: <span className="font-medium text-foreground">{formatCurrency(businessData.availableCredit)}</span>
-                  {businessData.outstandingCredit != null && businessData.outstandingCredit > 0 ? (
-                    <> · Đang nợ: {formatCurrency(businessData.outstandingCredit)}</>
-                  ) : null}
-                  {total > businessData.availableCredit ? (
-                    <span className="mt-1 block">Đơn hàng vượt hạn mức còn lại. Vui lòng chọn phương thức khác hoặc giảm giá trị đơn.</span>
-                  ) : null}
-                </p>
-              ) : null}
             </CardContent>
           </Card>
 
@@ -308,7 +279,7 @@ export function CheckoutPage() {
               <span className="font-semibold">Tổng cộng</span>
               <span className="text-xl font-bold text-primary">{formatCurrency(total)}</span>
             </div>
-            <Button className="w-full" size="lg" onClick={submit} disabled={createOrder.isPending || exceedsCredit}>
+            <Button className="w-full" size="lg" onClick={submit} disabled={createOrder.isPending}>
               {createOrder.isPending ? 'Đang xử lý…' : 'Đặt hàng'}
             </Button>
             <p className="text-center text-xs text-muted-foreground">

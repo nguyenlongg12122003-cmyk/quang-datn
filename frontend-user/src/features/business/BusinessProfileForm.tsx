@@ -12,10 +12,10 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { BUSINESS_STATUS_LABELS, BUSINESS_TYPE_LABELS, DOCUMENT_TYPE_LABELS } from '@/lib/constants'
-import { formatCurrency } from '@/lib/format'
+import { BUSINESS_STATUS_LABELS, BUSINESS_TYPE_LABELS, CUSTOMER_TYPE_LABELS, DOCUMENT_TYPE_LABELS } from '@/lib/constants'
 import { getErrorMessage } from '@/lib/api/axios'
 import { useBusinessProfile, useRegisterBusiness, useResubmitBusiness } from '@/features/business/api'
+import { useAuthStore } from '@/stores/auth-store'
 import type { BusinessDocument, BusinessProfile, BusinessType } from '@/types'
 import { isCloudinaryConfigured, uploadImageToCloudinary } from '@/lib/cloudinary'
 import { Upload, Trash2, FileText } from 'lucide-react'
@@ -175,6 +175,7 @@ export function BusinessProfileForm() {
   const { data, isLoading } = useBusinessProfile()
   const register = useRegisterBusiness()
   const resubmit = useResubmitBusiness()
+  const user = useAuthStore((s) => s.user)
   const [form, setForm] = useState<FormState>(emptyForm)
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Đang tải...</p>
@@ -222,14 +223,12 @@ export function BusinessProfileForm() {
           <p><span className="text-muted-foreground">Người liên hệ:</span> {profile.contactPerson}</p>
           <p><span className="text-muted-foreground">SĐT:</span> {profile.contactPhone || '—'}</p>
           <p><span className="text-muted-foreground">Email:</span> {profile.contactEmail || '—'}</p>
-          <p><span className="text-muted-foreground">Hạn thanh toán:</span> {profile.paymentTermDays} ngày</p>
-          <p><span className="text-muted-foreground">Hạn mức công nợ:</span> {formatCurrency(profile.creditLimit)}</p>
-          {data?.outstandingCredit != null && data.outstandingCredit > 0 && (
-            <p><span className="text-muted-foreground">Dư nợ hiện tại:</span> {formatCurrency(data.outstandingCredit)}</p>
-          )}
-          {data?.availableCredit != null && (
-            <p><span className="text-muted-foreground">Còn lại:</span> {formatCurrency(data.availableCredit)}</p>
-          )}
+          {profile.status === 'approved' && user?.customerType && user.customerType !== 'retail' ? (
+            <p>
+              <span className="text-muted-foreground">Nhóm giá:</span>{' '}
+              {CUSTOMER_TYPE_LABELS[user.customerType]}
+            </p>
+          ) : null}
         </div>
         {profile.invoiceAddress ? (
           <p className="text-sm">
@@ -302,7 +301,7 @@ export function BusinessProfileForm() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Đăng ký tài khoản doanh nghiệp để được báo giá, mua theo lốc/thùng và thanh toán công nợ.
+        Đăng ký tài khoản doanh nghiệp để được báo giá, mua theo lốc/thùng và hưởng giá sỉ sau khi được duyệt.
       </p>
       <BusinessRegistrationFields form={form} onChange={setForm} />
 

@@ -128,7 +128,7 @@ export function AdminBusinessPage() {
     <div className="space-y-6">
       <AdminPageHeader
         title="Khách hàng doanh nghiệp"
-        description="Duyệt hồ sơ B2B, xác minh giấy tờ, cấp hạn mức công nợ và nhóm giá."
+        description="Duyệt hồ sơ B2B, xác minh giấy tờ và cấp nhóm giá sỉ cho doanh nghiệp."
       />
 
       {/* Summary — click to filter */}

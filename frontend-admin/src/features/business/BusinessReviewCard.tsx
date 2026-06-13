@@ -5,7 +5,6 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
-  CreditCard,
   ExternalLink,
   FileText,
   Mail,
@@ -19,7 +18,6 @@ import {
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { Textarea } from '@/components/ui/textarea'
@@ -132,8 +130,6 @@ export function BusinessReviewCard({
   onReview: (payload: {
     status: 'approved' | 'rejected'
     customerType?: CustomerType
-    creditLimit?: number
-    paymentTermDays?: number
     note?: string
   }) => void
   isReviewing?: boolean
@@ -144,8 +140,6 @@ export function BusinessReviewCard({
   const StatusIcon = style.icon
 
   const [expanded, setExpanded] = useState(profile.status === 'pending')
-  const [creditLimit, setCreditLimit] = useState(String(profile.creditLimit || 50_000_000))
-  const [paymentTermDays, setPaymentTermDays] = useState(String(profile.paymentTermDays || 30))
   const [customerType, setCustomerType] = useState<CustomerType>(profile.customerType ?? 'wholesale')
   const [note, setNote] = useState('')
   const [mstResult, setMstResult] = useState<MstLookupResult | null>(null)
@@ -159,21 +153,9 @@ export function BusinessReviewCard({
   }
 
   const handleApprove = () => {
-    const limit = Number(creditLimit)
-    const termDays = Number(paymentTermDays)
-    if (!Number.isFinite(limit) || limit < 0) {
-      toast.error('Hạn mức công nợ không hợp lệ')
-      return
-    }
-    if (!Number.isFinite(termDays) || termDays < 0) {
-      toast.error('Hạn thanh toán không hợp lệ')
-      return
-    }
     onReview({
       status: 'approved',
       customerType,
-      creditLimit: limit,
-      paymentTermDays: termDays,
       note: note.trim() || undefined,
     })
   }
@@ -249,14 +231,15 @@ export function BusinessReviewCard({
           value={`${stats.orderCount} đơn · ${formatCurrency(stats.totalSpent)}`}
         />
         <StatTile
-          icon={CreditCard}
-          label="Công nợ"
+          icon={Building2}
+          label="Nhóm giá"
           value={
-            stats.creditOrderCount > 0
-              ? `${stats.creditOrderCount} đơn · ${formatCurrency(stats.creditTotal)}`
-              : 'Chưa có'
+            profile.customerType && profile.customerType !== 'retail'
+              ? CUSTOMER_TYPE_LABELS[profile.customerType]
+              : profile.status === 'approved'
+                ? 'Giá lẻ'
+                : 'Chưa cấp'
           }
-          accent={stats.creditOrderCount > 0 ? 'border-amber-200/80 bg-amber-50/50' : undefined}
         />
         <div className="flex items-stretch">
           <Button
@@ -410,35 +393,20 @@ export function BusinessReviewCard({
       {profile.status === 'pending' ? (
         <div className="border-t bg-amber-50/40 p-4 dark:bg-amber-950/20">
           <p className="mb-3 text-sm font-medium">Duyệt hồ sơ doanh nghiệp</p>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="space-y-1">
-              <Label>Nhóm giá</Label>
-              <Select value={customerType} onValueChange={(v) => setCustomerType(v as CustomerType)}>
-                <SelectTrigger className="bg-background">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="wholesale">{CUSTOMER_TYPE_LABELS.wholesale}</SelectItem>
-                  <SelectItem value="enterprise">{CUSTOMER_TYPE_LABELS.enterprise}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label>Hạn mức công nợ (VNĐ)</Label>
-              <Input
-                className="bg-background"
-                value={creditLimit}
-                onChange={(e) => setCreditLimit(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label>Hạn thanh toán (ngày)</Label>
-              <Input
-                className="bg-background"
-                value={paymentTermDays}
-                onChange={(e) => setPaymentTermDays(e.target.value)}
-              />
-            </div>
+          <div className="max-w-xs space-y-1">
+            <Label>Nhóm giá</Label>
+            <Select value={customerType} onValueChange={(v) => setCustomerType(v as CustomerType)}>
+              <SelectTrigger className="bg-background">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="wholesale">{CUSTOMER_TYPE_LABELS.wholesale}</SelectItem>
+                <SelectItem value="enterprise">{CUSTOMER_TYPE_LABELS.enterprise}</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Doanh nghiệp được duyệt sẽ mua theo nhóm giá này và thanh toán như khách hàng thông thường.
+            </p>
           </div>
           <div className="mt-3 space-y-1">
             <Label>Ghi chú (bắt buộc khi từ chối)</Label>
@@ -469,12 +437,6 @@ export function BusinessReviewCard({
       ) : (
         <div className="border-t bg-muted/20 px-4 py-3 text-sm">
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-muted-foreground">
-            <span>
-              Hạn mức <strong className="text-foreground">{formatCurrency(profile.creditLimit)}</strong>
-            </span>
-            <span>
-              Thanh toán <strong className="text-foreground">{profile.paymentTermDays} ngày</strong>
-            </span>
             {profile.customerType && profile.customerType !== 'retail' ? (
               <span>
                 Nhóm giá{' '}
@@ -482,7 +444,9 @@ export function BusinessReviewCard({
                   {CUSTOMER_TYPE_LABELS[profile.customerType]}
                 </strong>
               </span>
-            ) : null}
+            ) : (
+              <span>Nhóm giá <strong className="text-foreground">Giá lẻ</strong></span>
+            )}
             {profile.note ? (
               <span className="w-full text-xs">
                 Ghi chú: <span className="text-foreground">{profile.note}</span>

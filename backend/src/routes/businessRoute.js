@@ -195,12 +195,7 @@ router.get('/me', authMiddleware, async (req, res, next) => {
     if (!profile) {
       return res.json({ profile: null });
     }
-    const outstandingCredit = await getOutstandingCredit(pool, req.user.userId);
-    return res.json({
-      profile,
-      outstandingCredit,
-      availableCredit: Math.max(0, profile.creditLimit - outstandingCredit),
-    });
+    return res.json({ profile });
   } catch (error) {
     return next(error);
   }
@@ -427,7 +422,7 @@ router.get('/manage', authMiddleware, adminMiddleware, async (req, res, next) =>
 
 router.patch('/:userId/review', authMiddleware, adminMiddleware, async (req, res, next) => {
   try {
-    const { status, customerType, creditLimit, paymentTermDays, note } = req.body;
+    const { status, customerType, note } = req.body;
     if (!VALID_BUSINESS_STATUSES.includes(status)) {
       return res.status(400).json({ message: 'Trạng thái duyệt không hợp lệ' });
     }
@@ -438,12 +433,15 @@ router.patch('/:userId/review', authMiddleware, adminMiddleware, async (req, res
       return res.status(404).json({ message: 'Hồ sơ doanh nghiệp không tồn tại' });
     }
 
+    const resolvedCreditLimit = 0;
+    const resolvedPaymentTermDays = 0;
+
     // Record the review action in immutable history BEFORE or during the update
     await appendReviewHistory(pool, req.params.userId, {
       action: status === 'approved' ? 'approved' : 'rejected',
       status,
-      creditLimit: creditLimit != null ? Number(creditLimit) : profile.creditLimit,
-      paymentTermDays: paymentTermDays != null ? Number(paymentTermDays) : profile.paymentTermDays,
+      creditLimit: resolvedCreditLimit,
+      paymentTermDays: resolvedPaymentTermDays,
       customerType: customerType || undefined,
       note: note || null,
       performedBy: req.user.userId,
@@ -452,8 +450,8 @@ router.patch('/:userId/review', authMiddleware, adminMiddleware, async (req, res
     await pool.request()
       .input('userId', sql.NVarChar, req.params.userId)
       .input('status', sql.NVarChar, status)
-      .input('creditLimit', sql.Decimal(18, 2), creditLimit != null ? Number(creditLimit) : profile.creditLimit)
-      .input('paymentTermDays', sql.Int, paymentTermDays != null ? Number(paymentTermDays) : profile.paymentTermDays)
+      .input('creditLimit', sql.Decimal(18, 2), resolvedCreditLimit)
+      .input('paymentTermDays', sql.Int, resolvedPaymentTermDays)
       .input('note', sql.NVarChar, note || null)
       .input('approvedBy', sql.NVarChar, status === 'approved' ? req.user.userId : null)
       .query(`

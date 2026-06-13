@@ -16,8 +16,6 @@ export const businessApi = {
     payload: {
       status: BusinessProfile['status']
       customerType?: CustomerType
-      creditLimit?: number
-      paymentTermDays?: number
       note?: string
     },
   ) =>

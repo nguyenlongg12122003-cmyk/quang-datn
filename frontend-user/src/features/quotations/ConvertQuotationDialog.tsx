@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -17,13 +17,16 @@ import { Separator } from '@/components/ui/separator'
 import { AddressFormDialog } from '@/features/account/AddressFormDialog'
 import { QuotationItemsList } from '@/features/quotations/QuotationItemsList'
 import { useConvertQuotation } from '@/features/quotations/api'
-import { useBusinessProfile } from '@/features/business/api'
 import { useAuthStore } from '@/stores/auth-store'
 import { formatCurrency } from '@/lib/format'
 import { getErrorMessage } from '@/lib/api/axios'
 import { PAYMENT_METHOD_LABELS } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import type { PaymentMethod, Quotation } from '@/types'
+
+const CHECKOUT_PAYMENT_METHODS = (Object.keys(PAYMENT_METHOD_LABELS) as PaymentMethod[]).filter(
+  (method) => method !== 'credit',
+)
 
 interface ConvertQuotationDialogProps {
   quotation: Quotation | null
@@ -38,43 +41,20 @@ export function ConvertQuotationDialog({
 }: ConvertQuotationDialogProps) {
   const user = useAuthStore((s) => s.user)
   const convert = useConvertQuotation()
-  const { data: businessData } = useBusinessProfile()
   const addresses = user?.addresses ?? []
   const defaultAddressId = addresses.find((a) => a.isDefault)?.id ?? addresses[0]?.id
 
   const [addressId, setAddressId] = useState<string | undefined>(defaultAddressId)
-  const [payment, setPayment] = useState<PaymentMethod>('credit')
+  const [payment, setPayment] = useState<PaymentMethod>('cod')
   const [note, setNote] = useState('')
   const [addressDialog, setAddressDialog] = useState(false)
 
-  const canUseCredit = Boolean(
-    businessData?.profile?.status === 'approved' && businessData.profile.paymentTermDays > 0,
-  )
-
   const selectedAddress = addresses.find((a) => a.id === addressId)
-  const paymentOptions = useMemo(
-    () =>
-      (['cod', 'credit'] as PaymentMethod[]).filter(
-        (method) => method !== 'credit' || canUseCredit,
-      ),
-    [canUseCredit],
-  )
-
-  const exceedsCredit =
-    canUseCredit &&
-    payment === 'credit' &&
-    businessData?.availableCredit != null &&
-    quotation != null &&
-    quotation.total > businessData.availableCredit
 
   const handleSubmit = () => {
     if (!quotation) return
     if (!selectedAddress) {
       toast.error('Vui lòng chọn địa chỉ giao hàng')
-      return
-    }
-    if (exceedsCredit) {
-      toast.error('Đơn hàng vượt hạn mức công nợ còn lại')
       return
     }
 
@@ -156,7 +136,7 @@ export function ConvertQuotationDialog({
                     onValueChange={(value) => setPayment(value as PaymentMethod)}
                     className="space-y-2"
                   >
-                    {paymentOptions.map((method) => (
+                    {CHECKOUT_PAYMENT_METHODS.map((method) => (
                       <label
                         key={method}
                         className={cn(
@@ -169,11 +149,6 @@ export function ConvertQuotationDialog({
                       </label>
                     ))}
                   </RadioGroup>
-                  {exceedsCredit ? (
-                    <p className="text-xs text-destructive">
-                      Vượt hạn mức công nợ còn lại ({formatCurrency(businessData?.availableCredit ?? 0)}).
-                    </p>
-                  ) : null}
                 </section>
 
                 <section className="space-y-2">
