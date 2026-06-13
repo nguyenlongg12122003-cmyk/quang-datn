@@ -15,7 +15,7 @@ export function summarizeOrderItems(items: OrderItem[]): string {
 }
 
 export function isAwaitingOnlinePayment(order: Order): boolean {
-  return order.paymentMethod !== 'cod' && order.paymentStatus === 'pending'
+  return !['cod', 'cash'].includes(order.paymentMethod) && order.paymentStatus === 'pending'
 }
 
 export function hasPendingReturn(order: Order): boolean {

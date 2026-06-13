@@ -10,6 +10,7 @@ import {
   ORDER_STATUS_LABELS,
   PAYMENT_METHOD_LABELS,
   PAYMENT_STATUS_LABELS,
+  SALES_CHANNEL_LABELS,
   RETURN_STATUS_LABELS,
   SHIPPING_CARRIER_LABELS,
   SHIPPING_OPTIONS,
@@ -83,6 +84,11 @@ export function OrderDetailHeader({ order }: { order: Order }) {
       <div className="flex flex-wrap items-center gap-2.5">
         <h1 className="font-mono text-2xl font-bold tracking-tight">{order.id}</h1>
         <OrderStatusBadge status={order.status} />
+        {order.salesChannel === 'pos' ? (
+          <Badge variant="outline" className="border-sky-300 bg-sky-50 text-sky-800">
+            {SALES_CHANNEL_LABELS.pos}
+          </Badge>
+        ) : null}
         {hasPendingReturn(order) ? (
           <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-800">
             Chờ hoàn trả

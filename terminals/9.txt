@@ -1,0 +1,22 @@
+---
+pid: 28652
+cwd: "D:\Projects\quang-datn"
+command: "Get-NetTCPConnection -LocalPort 5000 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }; Start-Sleep -Seconds 2; cd D:\\Projects\\quang-datn\\backend; node -r dotenv/config src/server.js"
+started_at: 2026-06-13T19:04:03.110Z
+running_for_ms: 589998   
+---
+[db] Using existing database "VanPhongPham_DB"
+[initDb] Checking for pending migrations...
+[Migration] Applied migrations: 6
+[Migration] Found 6 migration files
+[Migration] ⊘ Skipping (already applied): 001_add_voucher_improvements.sql
+[Migration] ⊘ Skipping (already applied): 002_voucher_auto_distribution.sql
+[Migration] ⊘ Skipping (already applied): 003_add_order_shipping_fields.sql
+[Migration] ⊘ Skipping (already applied): 004_level2_b2b_inventory.sql
+[Migration] ⊘ Skipping (already applied): 005_add_business_documents_history.sql
+[Migration] ⊘ Skipping (already applied): 006_add_pos_fields.sql
+[Migration] ✓ All migrations up to date
+[server] Backend listening on port 5000
+[server] Socket.IO attached
+[socket] Connected: quang@user.com (customer) — socket 5-pFrTXwhwg0MJkwAAAB
+[socket] Connected: quang@admin.com (admin) — socket QnQFataeJ1w8BsmgAAAE

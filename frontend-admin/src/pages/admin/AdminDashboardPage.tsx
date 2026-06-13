@@ -44,7 +44,13 @@ export function AdminDashboardPage() {
   }
 
   const kpis = [
-    { label: 'Doanh thu', value: formatCurrency(stats.totalRevenue), icon: DollarSign, accent: 'bg-chart-1/10 text-chart-1' },
+    {
+      label: 'Doanh thu',
+      value: formatCurrency(stats.totalRevenue),
+      sub: stats.posRevenue > 0 ? `Tại quầy: ${formatCurrency(stats.posRevenue)}` : undefined,
+      icon: DollarSign,
+      accent: 'bg-chart-1/10 text-chart-1',
+    },
     { label: 'Đơn hàng', value: formatNumber(stats.totalOrders), icon: ShoppingBag, accent: 'bg-chart-2/10 text-chart-2' },
     { label: 'Sản phẩm', value: formatNumber(stats.totalProducts), icon: Package, accent: 'bg-chart-3/10 text-chart-3' },
     { label: 'Khách hàng', value: formatNumber(stats.totalCustomers), icon: Users, accent: 'bg-chart-5/10 text-chart-5' },
@@ -67,6 +73,9 @@ export function AdminDashboardPage() {
               <div>
                 <p className="text-sm text-muted-foreground">{kpi.label}</p>
                 <p className="text-2xl font-bold">{kpi.value}</p>
+                {'sub' in kpi && kpi.sub ? (
+                  <p className="mt-0.5 text-xs text-muted-foreground">{kpi.sub}</p>
+                ) : null}
               </div>
               <span className={`grid size-12 place-items-center rounded-xl ${kpi.accent}`}>
                 <kpi.icon className="size-6" />

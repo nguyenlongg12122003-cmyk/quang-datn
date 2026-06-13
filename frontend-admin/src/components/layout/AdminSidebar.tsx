@@ -10,6 +10,7 @@ import {
   MessagesSquare,
   Warehouse,
   Building2,
+  Store,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -27,6 +28,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/categories', label: 'Danh mục', icon: FolderTree },
   { to: '/brands', label: 'Thương hiệu', icon: Tags },
   { to: '/orders', label: 'Đơn hàng', icon: ShoppingBag },
+  { to: '/pos', label: 'Bán tại quầy', icon: Store },
   { to: '/inventory', label: 'Kho hàng', icon: Warehouse },
   { to: '/business', label: 'Doanh nghiệp', icon: Building2 },
   { to: '/vouchers', label: 'Voucher', icon: Ticket },

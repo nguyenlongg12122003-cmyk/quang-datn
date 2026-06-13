@@ -1,5 +1,5 @@
 import { api } from '@/lib/api/axios'
-import type { CustomizationStatus, Order, OrderStatus, PaymentMethod, PaymentStatus, ShippingCarrier } from '@/types'
+import type { CustomizationStatus, Order, OrderStatus, PaymentMethod, PaymentStatus, SalesChannel, ShippingCarrier } from '@/types'
 
 export type OrderSort = 'newest' | 'oldest' | 'total_desc' | 'total_asc'
 
@@ -19,6 +19,7 @@ export interface AdminOrderQuery {
   hasReturn?: 'pending'
   paymentMethod?: PaymentMethod | 'all'
   paymentStatus?: PaymentStatus | 'all'
+  salesChannel?: SalesChannel | 'all'
   sort?: OrderSort
   page?: number
   limit?: number
@@ -65,5 +66,9 @@ export const orderApi = {
   ) =>
     api
       .patch<{ message: string }>(`/orders/${orderId}/items/${itemId}/customization`, payload)
+      .then((r) => r.data),
+  verifyPayos: (params: Record<string, string>) =>
+    api
+      .get<{ success: boolean; pending?: boolean; orderId?: string }>('/orders/payos-verify', { params })
       .then((r) => r.data),
 }

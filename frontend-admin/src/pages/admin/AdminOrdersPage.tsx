@@ -56,10 +56,11 @@ import {
   PACKING_SLIP_STATUSES,
   PAYMENT_METHOD_LABELS,
   PAYMENT_STATUS_LABELS,
+  SALES_CHANNEL_LABELS,
   SHIPPING_CARRIER_LABELS,
 } from '@/lib/constants'
 import type { OrderSort, OrderTab } from '@/lib/api/endpoints/orders'
-import type { Order, OrderStatus, PaymentMethod, PaymentStatus, ShippingCarrier } from '@/types'
+import type { Order, OrderStatus, PaymentMethod, PaymentStatus, SalesChannel, ShippingCarrier } from '@/types'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
@@ -70,6 +71,7 @@ const PAYMENT_METHOD_SHORT: Record<PaymentMethod, string> = {
   vnpay: 'VNPay',
   payos: 'PayOS',
   credit: 'Công nợ',
+  cash: 'Tiền mặt',
 }
 
 const STICKY_ACTION_HEAD =
@@ -98,6 +100,13 @@ const PAYMENT_METHOD_FILTERS: Array<{ value: PaymentMethod | 'all'; label: strin
   { value: 'cod', label: 'COD' },
   { value: 'vnpay', label: 'VNPay' },
   { value: 'payos', label: 'PayOS' },
+  { value: 'cash', label: 'Tiền mặt' },
+]
+
+const SALES_CHANNEL_FILTERS: Array<{ value: SalesChannel | 'all'; label: string }> = [
+  { value: 'all', label: 'Tất cả kênh' },
+  { value: 'online', label: 'Online' },
+  { value: 'pos', label: 'Tại quầy' },
 ]
 
 const PAYMENT_STATUS_FILTERS: Array<{ value: PaymentStatus | 'all'; label: string }> = [
@@ -124,7 +133,12 @@ function parseTab(value: string | null): OrderTab {
 }
 
 function parsePaymentMethod(value: string | null): PaymentMethod | 'all' {
-  if (value === 'cod' || value === 'vnpay' || value === 'payos') return value
+  if (value === 'cod' || value === 'vnpay' || value === 'payos' || value === 'cash') return value
+  return 'all'
+}
+
+function parseSalesChannel(value: string | null): SalesChannel | 'all' {
+  if (value === 'online' || value === 'pos') return value
   return 'all'
 }
 
@@ -157,6 +171,7 @@ export function AdminOrdersPage() {
   const page = Math.max(1, Number(searchParams.get('page') || '1') || 1)
   const paymentMethod = parsePaymentMethod(searchParams.get('paymentMethod'))
   const paymentStatus = parsePaymentStatus(searchParams.get('paymentStatus'))
+  const salesChannel = parseSalesChannel(searchParams.get('salesChannel'))
   const sort = parseOrderSort(searchParams.get('sort'))
   const [search, setSearch] = useState(searchParams.get('q') ?? '')
   const q = useDebounce(search, 300)
@@ -167,11 +182,12 @@ export function AdminOrdersPage() {
       q: q.trim() || undefined,
       paymentMethod: paymentMethod === 'all' ? undefined : paymentMethod,
       paymentStatus: paymentStatus === 'all' ? undefined : paymentStatus,
+      salesChannel: salesChannel === 'all' ? undefined : salesChannel,
       sort: sort === 'newest' ? undefined : sort,
       page,
       limit: PAGE_SIZE,
     }),
-    [tab, q, paymentMethod, paymentStatus, sort, page],
+    [tab, q, paymentMethod, paymentStatus, salesChannel, sort, page],
   )
 
   const { data, isLoading, refetch } = useAdminOrders(query)
@@ -207,7 +223,7 @@ export function AdminOrdersPage() {
   const rangeStart = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1
   const rangeEnd = Math.min(page * PAGE_SIZE, total)
   const hasExtraFilters =
-    paymentMethod !== 'all' || paymentStatus !== 'all' || sort !== 'newest'
+    paymentMethod !== 'all' || paymentStatus !== 'all' || salesChannel !== 'all' || sort !== 'newest'
   const hasActiveFilters = Boolean(q.trim()) || hasExtraFilters
   const emptyState = getOrderTabEmptyState(tab, hasActiveFilters)
   const showNeedsActionHints = tab === 'needs_action'
@@ -234,7 +250,7 @@ export function AdminOrdersPage() {
 
   useEffect(() => {
     setSelectedIds(new Set())
-  }, [tab, q, page, paymentMethod, paymentStatus, sort])
+  }, [tab, q, page, paymentMethod, paymentStatus, salesChannel, sort])
 
   const setFilterParam = (key: string, value: string) => {
     updateSearchParams((params) => {
@@ -253,6 +269,7 @@ export function AdminOrdersPage() {
       params.delete('q')
       params.delete('paymentMethod')
       params.delete('paymentStatus')
+      params.delete('salesChannel')
       params.delete('sort')
       params.delete('page')
     })
@@ -278,6 +295,13 @@ export function AdminOrdersPage() {
           key: 'paymentStatus',
           label: PAYMENT_STATUS_LABELS[paymentStatus],
           onRemove: () => setFilterParam('paymentStatus', 'all'),
+        }
+      : null,
+    salesChannel !== 'all'
+      ? {
+          key: 'salesChannel',
+          label: SALES_CHANNEL_LABELS[salesChannel],
+          onRemove: () => setFilterParam('salesChannel', 'all'),
         }
       : null,
     sort !== 'newest'
@@ -466,6 +490,13 @@ export function AdminOrdersPage() {
         }
         filters={
           <>
+            <AdminFilterField label="Kênh bán">
+              <AdminFilterSelect
+                value={salesChannel}
+                onValueChange={(value) => setFilterParam('salesChannel', value)}
+                options={SALES_CHANNEL_FILTERS}
+              />
+            </AdminFilterField>
             <AdminFilterField label="Phương thức thanh toán">
               <AdminFilterSelect
                 value={paymentMethod}

@@ -22,6 +22,10 @@ const AdminVouchersPage = lazy(() => import('@/pages/admin/AdminVouchersPage').t
 const AdminUsersPage = lazy(() => import('@/pages/admin/AdminUsersPage').then((m) => ({ default: m.AdminUsersPage })))
 const AdminSupportPage = lazy(() => import('@/pages/admin/AdminSupportPage').then((m) => ({ default: m.AdminSupportPage })))
 const AdminInventoryPage = lazy(() => import('@/pages/admin/AdminInventoryPage').then((m) => ({ default: m.AdminInventoryPage })))
+const AdminPosPage = lazy(() => import('@/pages/admin/AdminPosPage').then((m) => ({ default: m.AdminPosPage })))
+const PosPaymentReturnPage = lazy(() =>
+  import('@/pages/admin/PosPaymentReturnPage').then((m) => ({ default: m.PosPaymentReturnPage })),
+)
 const AdminBusinessPage = lazy(() => import('@/pages/admin/AdminBusinessPage').then((m) => ({ default: m.AdminBusinessPage })))
 function PageFallback() {
   return (
@@ -40,6 +44,7 @@ function AppRoutes() {
     <Suspense fallback={<PageFallback />}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/payment/payos-return" element={<PosPaymentReturnPage />} />
 
         <Route element={<AdminRoute />}>
           <Route element={<AdminLayout />}>
@@ -51,6 +56,7 @@ function AppRoutes() {
             <Route path="brands" element={<AdminBrandsPage />} />
             <Route path="orders" element={<AdminOrdersPage />} />
             <Route path="orders/:id" element={<AdminOrderDetailPage />} />
+            <Route path="pos" element={<AdminPosPage />} />
             <Route path="vouchers" element={<AdminVouchersPage />} />
             <Route path="users" element={<AdminUsersPage />} />
             <Route path="business" element={<AdminBusinessPage />} />

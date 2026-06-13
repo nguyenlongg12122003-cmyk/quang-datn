@@ -304,7 +304,8 @@ export type OrderStatus =
   | 'cancelled'
   | 'returned'
 
-export type PaymentMethod = 'cod' | 'vnpay' | 'payos' | 'credit'
+export type PaymentMethod = 'cod' | 'vnpay' | 'payos' | 'credit' | 'cash'
+export type SalesChannel = 'online' | 'pos'
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded'
 export type ShippingMethod = 'standard' | 'express' | 'same_day'
 export type ShippingCarrier =
@@ -355,6 +356,8 @@ export interface Order {
   invoiceInfo?: InvoiceInfo | null
   estimatedDeliveryDate?: string | null
   hasCustomItems?: boolean
+  salesChannel?: SalesChannel
+  createdByStaffId?: string | null
   createdAt: string
   returnRequest?: ReturnRequest | null
   items: OrderItem[]
@@ -414,6 +417,8 @@ export interface DashboardStats {
   ordersByStatus: Array<{ status: OrderStatus; count: number }>
   topProducts: Array<{ name: string; sold: number; revenue: number }>
   revenueByMonth: Array<{ month: string; revenue: number; orders: number }>
+  posOrders: number
+  posRevenue: number
 }
 
 export interface RevenueReport {

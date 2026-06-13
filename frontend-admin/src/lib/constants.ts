@@ -2,6 +2,7 @@ import type {
   OrderStatus,
   PaymentMethod,
   PaymentStatus,
+  SalesChannel,
   ShippingCarrier,
   ShippingMethod,
 } from '@/types'
@@ -41,6 +42,12 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   vnpay: 'VNPay',
   payos: 'PayOS',
   credit: 'Thanh toán công nợ (B2B)',
+  cash: 'Tiền mặt',
+}
+
+export const SALES_CHANNEL_LABELS: Record<SalesChannel, string> = {
+  online: 'Online',
+  pos: 'Tại quầy',
 }
 
 export const CUSTOMIZATION_STATUS_LABELS = {
