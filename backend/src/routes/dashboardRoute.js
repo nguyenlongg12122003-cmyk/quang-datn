@@ -10,7 +10,7 @@ router.get('/stats', authMiddleware, adminMiddleware, async (_req, res, next) =>
   try {
     const pool = await getPool();
 
-    const [revenue, orders, products, customers, pendingOrders, lowStockProducts, ordersByStatus, topProducts, revenueByMonth, newCustomers] = await Promise.all([
+    const [revenue, orders, products, customers, pendingOrders, lowStockProducts, ordersByStatus, topProducts, revenueByMonth, newCustomers, posStats] = await Promise.all([
       pool.request().query("SELECT ISNULL(SUM(total),0) AS totalRevenue FROM dbo.orders WHERE status IN ('delivered','shipping','confirmed')"),
       pool.request().query('SELECT COUNT(1) AS totalOrders FROM dbo.orders'),
       pool.request().query('SELECT COUNT(1) AS totalProducts FROM dbo.products'),
@@ -52,6 +52,15 @@ router.get('/stats', authMiddleware, adminMiddleware, async (_req, res, next) =>
           AND YEAR(createdAt) = YEAR(GETUTCDATE())
           AND MONTH(createdAt) = MONTH(GETUTCDATE())
       `),
+      pool.request().query(`
+        SELECT
+          COUNT(1) AS posOrders,
+          ISNULL(SUM(total), 0) AS posRevenue
+        FROM dbo.orders
+        WHERE salesChannel = 'pos'
+          AND paymentStatus = 'paid'
+          AND [status] IN ('delivered', 'confirmed')
+      `),
     ]);
 
     // Return rate = orders with returnRequest / total delivered
@@ -79,6 +88,8 @@ router.get('/stats', authMiddleware, adminMiddleware, async (_req, res, next) =>
         revenue: Number(r.revenue),
         orders: r.orders,
       })),
+      posOrders: posStats.recordset[0].posOrders,
+      posRevenue: Number(posStats.recordset[0].posRevenue),
     });
   } catch (error) {
     return next(error);

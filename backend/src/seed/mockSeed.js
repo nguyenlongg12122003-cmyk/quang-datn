@@ -39,6 +39,7 @@ const brands = [
 ];
 
 const users = [
+  { id: 'user-pos-walkin', email: 'walkin@pos.internal', name: 'Khách lẻ tại quầy', phone: '', avatar: null, role: 'customer', status: 'active', customerType: 'retail', createdAt: '2025-12-01T00:00:00Z' },
   { id: 'user-1', email: 'phanquang@admin.com', name: 'Phan Quang Admin', phone: '0901234567', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=phanquang-admin', role: 'admin', status: 'active', customerType: 'retail', createdAt: '2025-12-01T00:00:00Z' },
   { id: 'user-2', email: 'phanquang@user.com', name: 'Phan Quang User', phone: '0912345678', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=phanquang-user', role: 'customer', status: 'active', customerType: 'retail', createdAt: '2026-01-12T00:00:00Z' },
   { id: 'user-3', email: 'abcwholesale@business.com', name: 'Nguyễn Văn Bình', phone: '0903111222', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=abc-wholesale', role: 'customer', status: 'active', customerType: 'wholesale', createdAt: '2026-02-10T00:00:00Z' },

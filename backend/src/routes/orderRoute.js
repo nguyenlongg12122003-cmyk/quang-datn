@@ -6,14 +6,19 @@ const { VNPay, ignoreLogger } = require('vnpay');
 const { PayOS } = require('@payos/node');
 const { getUserOrderCount, checkOrderMilestone } = require('../services/voucherDistributionService');
 const { createOrderTransaction } = require('../services/orderService');
+const { createPosOrderTransaction, cancelPosPayosOrder } = require('../services/posService');
 const { maybeRestoreStockForOrder } = require('../services/inventoryService');
 
 const router = express.Router();
 
 const FRONTEND_BASE_URL = process.env.FRONTEND_BASE_URL || 'http://localhost:5173';
+const ADMIN_FRONTEND_URL = process.env.ADMIN_FRONTEND_URL || 'http://localhost:5174';
 const VNPAY_RETURN_URL = process.env.VNPAY_RETURN_URL || 'http://localhost:5000/api/orders/vnpay-return';
 const PAYOS_RETURN_URL = process.env.PAYOS_RETURN_URL || new URL('/payment/payos-return', FRONTEND_BASE_URL).toString();
 const PAYOS_CANCEL_URL = process.env.PAYOS_CANCEL_URL || PAYOS_RETURN_URL;
+const PAYOS_ADMIN_RETURN_URL = process.env.PAYOS_ADMIN_RETURN_URL
+  || new URL('/payment/payos-return', ADMIN_FRONTEND_URL).toString();
+const PAYOS_ADMIN_CANCEL_URL = process.env.PAYOS_ADMIN_CANCEL_URL || PAYOS_ADMIN_RETURN_URL;
 
 function resolveVNPayHost() {
   const raw = process.env.VNPAY_HOST || process.env.VNPAY_URL || 'https://sandbox.vnpayment.vn';
@@ -103,20 +108,26 @@ function getOrderIdFromPayOSOrderCode(orderCode) {
 async function markOrderPaid(pool, orderId, successNote) {
   const orderResult = await pool.request()
     .input('id', sql.NVarChar, orderId)
-    .query('SELECT TOP 1 id, paymentStatus, voucherCode, [status] FROM dbo.orders WHERE id = @id');
+    .query('SELECT TOP 1 id, paymentStatus, voucherCode, [status], salesChannel FROM dbo.orders WHERE id = @id');
 
   const order = orderResult.recordset[0];
   if (!order) {
     return { ok: false, reason: 'order_not_found', orderId };
   }
 
+  const isPos = order.salesChannel === 'pos';
+  const nextStatus = isPos
+    ? 'delivered'
+    : (order.status === 'pending' ? 'confirmed' : order.status);
+
   await pool.request()
     .input('id', sql.NVarChar, orderId)
-    .query("UPDATE dbo.orders SET paymentStatus = 'paid', [status] = CASE WHEN [status] = 'pending' THEN 'confirmed' ELSE [status] END WHERE id = @id");
+    .input('nextStatus', sql.NVarChar, nextStatus)
+    .query("UPDATE dbo.orders SET paymentStatus = 'paid', [status] = @nextStatus WHERE id = @id");
 
   await pool.request()
     .input('orderId', sql.NVarChar, orderId)
-    .input('status', sql.NVarChar, 'confirmed')
+    .input('status', sql.NVarChar, nextStatus)
     .input('note', sql.NVarChar, successNote)
     .query("IF NOT EXISTS (SELECT 1 FROM dbo.order_timeline WHERE orderId = @orderId AND [status] = @status) INSERT INTO dbo.order_timeline (orderId, status, date, note) VALUES (@orderId, @status, SYSUTCDATETIME(), @note)");
 
@@ -344,7 +355,7 @@ function appendOrderTabFilter(request, conditions, tab) {
       [status] IN ('pending', 'confirmed')
       OR ([status] = 'processing' AND packingSlipPrintedAt IS NULL)
       OR (
-        [paymentMethod] <> 'cod'
+        [paymentMethod] NOT IN ('cod', 'cash')
         AND [paymentStatus] = 'pending'
         AND [status] IN ('pending', 'confirmed', 'processing')
       )
@@ -375,6 +386,7 @@ async function buildAllOrders(pool, {
   hasReturn,
   paymentMethod,
   paymentStatus,
+  salesChannel,
   sort,
   page,
   limit,
@@ -400,6 +412,11 @@ async function buildAllOrders(pool, {
   if (paymentStatus && paymentStatus !== 'all') {
     request.input('paymentStatusFilter', sql.NVarChar, paymentStatus);
     conditions.push('[paymentStatus] = @paymentStatusFilter');
+  }
+
+  if (salesChannel && salesChannel !== 'all') {
+    request.input('salesChannelFilter', sql.NVarChar, salesChannel);
+    conditions.push('[salesChannel] = @salesChannelFilter');
   }
 
   if (q) {
@@ -508,6 +525,8 @@ function buildOrdersFromRows(orders, items, timelines) {
     invoiceInfo: safeJsonParse(row.invoiceInfo, null),
     hasCustomItems: Boolean(row.hasCustomItems),
     paymentTermDays: row.paymentTermDays != null ? Number(row.paymentTermDays) : null,
+    salesChannel: row.salesChannel || 'online',
+    createdByStaffId: row.createdByStaffId || null,
     items: itemsByOrder[row.id] || [],
     timeline: timelineByOrder[row.id] || [],
   }));
@@ -865,10 +884,161 @@ router.post('/:id/return-request', authMiddleware, async (req, res, next) => {
 
 // ==================== ADMIN ====================
 
+// Create POS (in-store) order
+router.post('/pos', authMiddleware, adminMiddleware, async (req, res, next) => {
+  try {
+    const {
+      items,
+      paymentMethod,
+      discount,
+      note,
+      customerName,
+      customerPhone,
+    } = req.body;
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ message: 'Giỏ hàng trống' });
+    }
+
+    const pool = await getPool();
+    const created = await createPosOrderTransaction(pool, {
+      items,
+      paymentMethod,
+      discount,
+      note,
+      customerName,
+      customerPhone,
+      createdByStaffId: req.user.userId,
+    });
+
+    if (created.paymentMethod === 'payos') {
+      const payos = getPayOSGateway();
+      if (!payos) {
+        return res.status(500).json({ message: 'PayOS chưa được cấu hình trên server' });
+      }
+
+      const payableAmount = Math.round(Number(created.total || 0));
+      if (!Number.isFinite(payableAmount) || payableAmount <= 0) {
+        return res.status(400).json({ message: 'Số tiền thanh toán không hợp lệ' });
+      }
+
+      const paymentLink = await payos.paymentRequests.create({
+        orderCode: getPayOSOrderCode(created.id),
+        amount: payableAmount,
+        description: `POS ${created.id}`.slice(0, 25),
+        returnUrl: PAYOS_ADMIN_RETURN_URL,
+        cancelUrl: PAYOS_ADMIN_CANCEL_URL,
+        buyerName: customerName ? String(customerName).slice(0, 100) : 'Khach le',
+        buyerPhone: customerPhone ? String(customerPhone).slice(0, 20) : undefined,
+        items: created.items.map((item) => ({
+          name: String(item.productName).slice(0, 25),
+          quantity: item.quantity,
+          price: Math.round(item.price),
+        })),
+      });
+
+      return res.status(201).json({
+        ...created,
+        paymentUrl: paymentLink.checkoutUrl,
+        qrCode: paymentLink.qrCode || null,
+      });
+    }
+
+    return res.status(201).json(created);
+  } catch (error) {
+    if (error.message && !error.code) {
+      return res.status(400).json({ message: error.message });
+    }
+    return next(error);
+  }
+});
+
+// List pending PayOS orders at POS counter
+router.get('/pos/pending', authMiddleware, adminMiddleware, async (_req, res, next) => {
+  try {
+    const pool = await getPool();
+    const ordersResult = await pool.request().query(`
+      SELECT TOP 30
+        id, subtotal, discount, total, paymentMethod, paymentStatus, [status],
+        salesChannel, createdAt, note, shippingAddress
+      FROM dbo.orders
+      WHERE salesChannel = 'pos'
+        AND paymentMethod = 'payos'
+        AND paymentStatus = 'pending'
+        AND [status] = 'pending'
+      ORDER BY createdAt DESC
+    `);
+
+    const rows = ordersResult.recordset;
+    if (rows.length === 0) {
+      return res.json({ items: [] });
+    }
+
+    const orderIds = rows.map((row) => row.id);
+    const itemRows = await loadOrderItemsForOrders(pool, orderIds);
+
+    const itemsByOrder = itemRows.reduce((acc, row) => {
+      acc[row.orderId] = acc[row.orderId] || [];
+      acc[row.orderId].push({
+        productId: row.productId,
+        productName: row.productName,
+        price: Number(row.price),
+        quantity: row.quantity,
+      });
+      return acc;
+    }, {});
+
+    const items = rows.map((row) => {
+      const shippingAddress = safeJsonParse(row.shippingAddress, {});
+      return {
+        id: row.id,
+        subtotal: Number(row.subtotal),
+        discount: Number(row.discount),
+        total: Number(row.total),
+        paymentMethod: row.paymentMethod,
+        paymentStatus: row.paymentStatus,
+        status: row.status,
+        salesChannel: row.salesChannel,
+        createdAt: row.createdAt,
+        note: row.note,
+        customerName: shippingAddress.name || 'Khách lẻ',
+        customerPhone: shippingAddress.phone || '',
+        items: itemsByOrder[row.id] || [],
+      };
+    });
+
+    return res.json({ items });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+// Cancel pending PayOS order at POS counter
+router.post('/pos/:id/cancel', authMiddleware, adminMiddleware, async (req, res, next) => {
+  try {
+    const { reason } = req.body;
+    const pool = await getPool();
+    const result = await cancelPosPayosOrder(pool, req.params.id, req.user.userId, reason);
+
+    try {
+      await cancelPayOSPaymentLinkByOrderId(req.params.id, 'Nhan vien huy don POS');
+    } catch (payosError) {
+      console.warn('[POS] PayOS cancel link warning:', payosError?.message || payosError);
+    }
+
+    return res.json(result);
+  } catch (error) {
+    if (error.message && !error.code) {
+      return res.status(400).json({ message: error.message });
+    }
+    return next(error);
+  }
+});
+
 // Get ALL orders (admin)
 router.get('/', authMiddleware, adminMiddleware, async (req, res, next) => {
   try {
-    const { status, tab, q, hasReturn, paymentMethod, paymentStatus, sort, page, limit } = req.query;
+    const { status, tab, q, hasReturn, paymentMethod, paymentStatus, salesChannel, sort, page, limit } = req.query;
     const pool = await getPool();
     const result = await buildAllOrders(pool, {
       status,
@@ -877,6 +1047,7 @@ router.get('/', authMiddleware, adminMiddleware, async (req, res, next) => {
       hasReturn,
       paymentMethod,
       paymentStatus,
+      salesChannel,
       sort,
       page,
       limit,
@@ -980,7 +1151,7 @@ router.patch('/:id/status', authMiddleware, adminMiddleware, async (req, res, ne
     if (status === 'cancelled' && order.paymentStatus === 'paid') {
       nextPaymentStatus = 'refunded';
     }
-    if (status === 'delivered' && ['cod', 'credit'].includes(order.paymentMethod) && order.paymentStatus === 'pending') {
+    if (status === 'delivered' && ['cod', 'credit', 'cash'].includes(order.paymentMethod) && order.paymentStatus === 'pending') {
       nextPaymentStatus = 'paid';
     }
 
