@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/table'
 import { EmptyState } from '@/components/common/EmptyState'
 import { useAdminUsers, useSetUserRole, useSetUserStatus } from '@/features/admin/api'
+import { useAdminListRefetch } from '@/hooks/use-admin-list-refetch'
 import { useDebounce } from '@/hooks/use-debounce'
 import { formatDate, formatNumber } from '@/lib/format'
 import { getErrorMessage } from '@/lib/api/axios'
@@ -67,7 +68,8 @@ export function AdminUsersPage() {
     [q, role, status],
   )
 
-  const { data: users = [], isLoading, isFetching, refetch } = useAdminUsers(query)
+  const { data: users = [], isLoading, refetch } = useAdminUsers(query)
+  const { refresh, isRefreshing } = useAdminListRefetch(refetch)
   const setUserStatus = useSetUserStatus()
   const setUserRole = useSetUserRole()
 
@@ -116,8 +118,8 @@ export function AdminUsersPage() {
         searchPlaceholder="Tìm tên, email, số điện thoại…"
         hasActiveFilters={hasActiveFilters}
         onClearFilters={resetFilters}
-        onRefresh={() => refetch()}
-        isRefreshing={isFetching}
+        onRefresh={refresh}
+        isRefreshing={isRefreshing}
         activeFilterCount={filterChips.filter((chip) => chip.key !== 'q').length}
         footer={
           <AdminActiveFilterChips chips={filterChips} onClearAll={hasActiveFilters ? resetFilters : undefined} />

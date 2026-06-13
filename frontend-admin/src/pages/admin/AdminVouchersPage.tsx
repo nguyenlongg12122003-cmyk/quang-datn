@@ -24,6 +24,7 @@ import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { VoucherFormDialog } from '@/features/admin/VoucherFormDialog'
 import { useAdminVouchers } from '@/features/vouchers/api'
 import { useDeleteVoucher } from '@/features/admin/api'
+import { useAdminListRefetch } from '@/hooks/use-admin-list-refetch'
 import { useDebounce } from '@/hooks/use-debounce'
 import { formatCurrency, formatDate, formatNumber } from '@/lib/format'
 import { getErrorMessage } from '@/lib/api/axios'
@@ -102,7 +103,8 @@ export function AdminVouchersPage() {
     [q, status, type, sort],
   )
 
-  const { data: vouchers = [], isLoading, isFetching, refetch } = useAdminVouchers(query)
+  const { data: vouchers = [], isLoading, refetch } = useAdminVouchers(query)
+  const { refresh, isRefreshing } = useAdminListRefetch(refetch)
   const deleteVoucher = useDeleteVoucher()
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Voucher | null>(null)
@@ -200,8 +202,8 @@ export function AdminVouchersPage() {
         searchPlaceholder="Tìm mã, mô tả…"
         hasActiveFilters={hasActiveFilters}
         onClearFilters={resetFilters}
-        onRefresh={() => refetch()}
-        isRefreshing={isFetching}
+        onRefresh={refresh}
+        isRefreshing={isRefreshing}
         activeFilterCount={filterChips.filter((chip) => chip.key !== 'q').length}
         footer={<AdminActiveFilterChips chips={filterChips} onClearAll={hasActiveFilters ? resetFilters : undefined} />}
         filters={

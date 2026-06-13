@@ -17,6 +17,7 @@ import { useAdminBusinessProfiles, useReviewBusinessProfile } from '@/features/b
 import { BUSINESS_STATUS_LABELS } from '@/lib/constants'
 import { getErrorMessage } from '@/lib/api/axios'
 import { cn } from '@/lib/utils'
+import { useAdminListRefetch } from '@/hooks/use-admin-list-refetch'
 import { useDebounce } from '@/hooks/use-debounce'
 import type { BusinessStatus } from '@/types'
 
@@ -55,7 +56,8 @@ export function AdminBusinessPage() {
   const q = useDebounce(search, 300)
 
   const listQuery = { status, q: q.trim() || undefined }
-  const { data: profiles = [], isLoading, isFetching, refetch } = useAdminBusinessProfiles(listQuery)
+  const { data: profiles = [], isLoading, refetch } = useAdminBusinessProfiles(listQuery)
+  const { refresh, isRefreshing } = useAdminListRefetch(refetch)
   const { data: allProfiles = [] } = useAdminBusinessProfiles({ status: 'all' })
   const review = useReviewBusinessProfile()
 
@@ -159,8 +161,8 @@ export function AdminBusinessPage() {
         search={search}
         onSearchChange={setSearch}
         searchPlaceholder="Tìm theo tên công ty, MST, email..."
-        onRefresh={() => refetch()}
-        isRefreshing={isFetching && !isLoading}
+        onRefresh={refresh}
+        isRefreshing={isRefreshing}
         hasActiveFilters={hasActiveFilters}
         onClearFilters={resetFilters}
         activeFilterCount={filterChips.length}

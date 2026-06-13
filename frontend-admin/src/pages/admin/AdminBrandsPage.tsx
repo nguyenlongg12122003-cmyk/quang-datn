@@ -31,6 +31,7 @@ import {
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { useBrands } from '@/features/catalog/api'
 import { useDeleteBrand, useSaveBrand } from '@/features/admin/api'
+import { useAdminListRefetch } from '@/hooks/use-admin-list-refetch'
 import { useDebounce } from '@/hooks/use-debounce'
 import { matchesSearchQuery, sortByString } from '@/lib/admin-list'
 import { formatNumber } from '@/lib/format'
@@ -52,7 +53,8 @@ const SORT_OPTIONS: Array<{ value: BrandSort; label: string }> = [
 ]
 
 export function AdminBrandsPage() {
-  const { data: brands = [], isLoading, isFetching, refetch } = useBrands()
+  const { data: brands = [], isLoading, refetch } = useBrands()
+  const { refresh, isRefreshing } = useAdminListRefetch(refetch)
   const saveBrand = useSaveBrand()
   const deleteBrand = useDeleteBrand()
   const [open, setOpen] = useState(false)
@@ -156,8 +158,8 @@ export function AdminBrandsPage() {
         searchPlaceholder="Tìm tên thương hiệu…"
         hasActiveFilters={hasActiveFilters}
         onClearFilters={resetFilters}
-        onRefresh={() => refetch()}
-        isRefreshing={isFetching}
+        onRefresh={refresh}
+        isRefreshing={isRefreshing}
         activeFilterCount={filterChips.filter((chip) => chip.key !== 'q').length}
         footer={<AdminActiveFilterChips chips={filterChips} onClearAll={hasActiveFilters ? resetFilters : undefined} />}
         filters={

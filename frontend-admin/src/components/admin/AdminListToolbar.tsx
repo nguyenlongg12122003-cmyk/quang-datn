@@ -24,7 +24,7 @@ interface AdminListToolbarProps {
   footer?: ReactNode
   hasActiveFilters?: boolean
   onClearFilters?: () => void
-  onRefresh?: () => void
+  onRefresh?: () => void | Promise<unknown>
   isRefreshing?: boolean
   sticky?: boolean
   className?: string
@@ -50,6 +50,11 @@ export function AdminListToolbar({
   const handleClearFilters = () => {
     onClearFilters?.()
     setFilterOpen(false)
+  }
+
+  const handleRefresh = () => {
+    if (!onRefresh || isRefreshing) return
+    void Promise.resolve(onRefresh())
   }
 
   return (
@@ -111,11 +116,12 @@ export function AdminListToolbar({
               variant="outline"
               size="icon"
               className="size-10 shrink-0"
-              onClick={onRefresh}
+              onClick={handleRefresh}
               disabled={isRefreshing}
+              aria-busy={isRefreshing}
               aria-label="Làm mới danh sách"
             >
-              <RefreshCw className={isRefreshing ? 'size-4 animate-spin' : 'size-4'} />
+              <RefreshCw className={cn('size-4', isRefreshing && 'animate-spin')} />
             </Button>
           ) : null}
         </div>

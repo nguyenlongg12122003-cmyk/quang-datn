@@ -32,6 +32,7 @@ import { Badge } from '@/components/ui/badge'
 import { ConfirmDialog } from '@/components/common/ConfirmDialog'
 import { useCategories } from '@/features/catalog/api'
 import { useDeleteCategory, useSaveCategory } from '@/features/admin/api'
+import { useAdminListRefetch } from '@/hooks/use-admin-list-refetch'
 import { useDebounce } from '@/hooks/use-debounce'
 import { matchesSearchQuery, sortByNumber, sortByString } from '@/lib/admin-list'
 import { formatNumber } from '@/lib/format'
@@ -56,7 +57,8 @@ const SORT_OPTIONS: Array<{ value: CategorySort; label: string }> = [
 ]
 
 export function AdminCategoriesPage() {
-  const { data: categories = [], isLoading, isFetching, refetch } = useCategories()
+  const { data: categories = [], isLoading, refetch } = useCategories()
+  const { refresh, isRefreshing } = useAdminListRefetch(refetch)
   const saveCategory = useSaveCategory()
   const deleteCategory = useDeleteCategory()
   const [editing, setEditing] = useState<Category | null>(null)
@@ -175,8 +177,8 @@ export function AdminCategoriesPage() {
         searchPlaceholder="Tìm tên, slug, mô tả…"
         hasActiveFilters={hasActiveFilters}
         onClearFilters={resetFilters}
-        onRefresh={() => refetch()}
-        isRefreshing={isFetching}
+        onRefresh={refresh}
+        isRefreshing={isRefreshing}
         activeFilterCount={filterChips.filter((chip) => chip.key !== 'q').length}
         footer={<AdminActiveFilterChips chips={filterChips} onClearAll={hasActiveFilters ? resetFilters : undefined} />}
         filters={

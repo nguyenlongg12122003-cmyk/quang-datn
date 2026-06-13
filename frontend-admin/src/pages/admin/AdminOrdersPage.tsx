@@ -45,6 +45,7 @@ import {
   isAwaitingOnlinePayment,
   summarizeOrderItems,
 } from '@/features/orders/order-helpers'
+import { useAdminListRefetch } from '@/hooks/use-admin-list-refetch'
 import { useDebounce } from '@/hooks/use-debounce'
 import { formatCurrency, formatDate, formatNumber, formatRelative } from '@/lib/format'
 import { getErrorMessage } from '@/lib/api/axios'
@@ -173,7 +174,8 @@ export function AdminOrdersPage() {
     [tab, q, paymentMethod, paymentStatus, sort, page],
   )
 
-  const { data, isLoading, isFetching, refetch } = useAdminOrders(query)
+  const { data, isLoading, refetch } = useAdminOrders(query)
+  const { refresh, isRefreshing } = useAdminListRefetch(refetch)
   const orders = data?.items ?? []
   const total = data?.total ?? 0
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
@@ -441,8 +443,8 @@ export function AdminOrdersPage() {
         searchPlaceholder="Tìm mã đơn, SĐT, tên, sản phẩm…"
         hasActiveFilters={hasActiveFilters}
         onClearFilters={resetFilters}
-        onRefresh={() => refetch()}
-        isRefreshing={isFetching}
+        onRefresh={refresh}
+        isRefreshing={isRefreshing}
         activeFilterCount={filterChips.filter((chip) => chip.key !== 'q').length}
         footer={
           <div className="space-y-2">

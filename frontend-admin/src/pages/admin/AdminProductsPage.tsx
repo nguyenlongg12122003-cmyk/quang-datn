@@ -25,6 +25,7 @@ import { EmptyState } from '@/components/common/EmptyState'
 import { Pagination } from '@/components/common/Pagination'
 import { useBrands, useCategories, useProducts } from '@/features/catalog/api'
 import { useDeleteProduct } from '@/features/admin/api'
+import { useAdminListRefetch } from '@/hooks/use-admin-list-refetch'
 import { useDebounce } from '@/hooks/use-debounce'
 import { formatCurrency, formatNumber } from '@/lib/format'
 import { getErrorMessage } from '@/lib/api/axios'
@@ -79,7 +80,8 @@ export function AdminProductsPage() {
 
   const { data: categories = [] } = useCategories()
   const { data: brands = [] } = useBrands()
-  const { data, isLoading, isError, error, refetch, isFetching } = useProducts(query)
+  const { data, isLoading, isError, error, refetch } = useProducts(query)
+  const { refresh, isRefreshing } = useAdminListRefetch(refetch)
   const deleteProduct = useDeleteProduct()
 
   const products = data?.items ?? []
@@ -207,8 +209,8 @@ export function AdminProductsPage() {
         searchPlaceholder="Tìm tên, SKU, mô tả, tags…"
         hasActiveFilters={hasActiveFilters}
         onClearFilters={resetFilters}
-        onRefresh={() => refetch()}
-        isRefreshing={isFetching}
+        onRefresh={refresh}
+        isRefreshing={isRefreshing}
         activeFilterCount={filterChips.filter((chip) => chip.key !== 'q').length}
         footer={
           <AdminActiveFilterChips chips={filterChips} onClearAll={hasActiveFilters ? resetFilters : undefined} />
